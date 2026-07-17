@@ -270,7 +270,10 @@ function createStreetlight(x, z, colorHex, courseGroup) {
   const spot = new THREE.SpotLight(colorHex, 8, 15, Math.PI / 3, 0.5, 1.2);
   spot.position.set(x + Math.cos(angleToCenter) * 0.45, 2.1, z + Math.sin(angleToCenter) * 0.45);
   spot.target.position.set(x + Math.cos(angleToCenter) * 0.45, 0, z + Math.sin(angleToCenter) * 0.45);
-  spot.castShadow = true;
+  
+  // Disable street light shadows on mobile/tablet to save 4 shadow map render passes per frame
+  const isMobileOrTablet = window.matchMedia('(max-width: 1024px)').matches || window.matchMedia('(hover: none) and (pointer: coarse)').matches;
+  spot.castShadow = !isMobileOrTablet;
   spot.shadow.mapSize.width = 512;
   spot.shadow.mapSize.height = 512;
   spot.shadow.bias = -0.001;
@@ -361,74 +364,104 @@ export function buildCourse(scene) {
   const startPos = getStartPos();
   const goalPos = getGoalPos();
 
+  // Shared Geometries to optimize memory footprint, heap allocations, and garbage collection
+  const slabGeo = new THREE.BoxGeometry(TILE, 0.15, TILE);
+  const slabMat = new THREE.MeshStandardMaterial({ color: 0x1f1f2e, roughness: 0.6, metalness: 0.8 });
+  const pillarGeo = new THREE.CylinderGeometry(0.04, 0.04, 1.35, 8);
+  const pillarMat = new THREE.MeshStandardMaterial({ color: 0x222233, metalness: 0.8, roughness: 0.2 });
+
+  const wallBoxGeo = new THREE.BoxGeometry(TILE, 2.5, TILE);
+  const wallCapGeo = new THREE.BoxGeometry(TILE, 0.08, TILE);
+  const wallStripGeo = new THREE.BoxGeometry(TILE + 0.02, 0.04, 0.04);
+
+  const crateS = TILE * 0.72;
+  const crateBoxGeo = new THREE.BoxGeometry(crateS, crateS, crateS);
+  const crateStripeGeo1 = new THREE.BoxGeometry(crateS * 0.06, crateS + 0.01, crateS + 0.01);
+  const crateStripeGeo2 = new THREE.BoxGeometry(crateS + 0.01, crateS + 0.01, crateS * 0.06);
+  const crateCornerSize = 0.08;
+  const crateCornerGeo = new THREE.BoxGeometry(crateCornerSize, crateS + 0.02, crateCornerSize);
+  const crateGlowGeo = new THREE.BoxGeometry(crateS * 0.15, crateS * 0.15, crateS * 1.02);
+  const crateGlowLedMat = new THREE.MeshStandardMaterial({ color: 0xffaa00, emissive: 0xff8800, emissiveIntensity: 2.0 });
+
+  const rBarrel = TILE * 0.28;
+  const hBarrel = TILE * 0.65;
+  const barrelCoreGeo = new THREE.CylinderGeometry(rBarrel * 0.8, rBarrel * 0.8, hBarrel * 0.95, 12);
+  const barrelCoreMat = new THREE.MeshStandardMaterial({
+    color: 0x33ff66,
+    emissive: 0x22cc44,
+    emissiveIntensity: 2.5,
+    roughness: 0.2,
+    metalness: 0.1
+  });
+  const barrelColGeo = new THREE.BoxGeometry(0.04, hBarrel, 0.04);
+  const barrelBandGeo = new THREE.CylinderGeometry(rBarrel * 1.05, rBarrel * 1.05, 0.04, 12);
+  const barrelRimGeo = new THREE.TorusGeometry(rBarrel * 0.9, 0.02, 6, 12);
+
+  const L = Math.sqrt(TILE * TILE + 1.5 * 1.5);
+  const theta = Math.atan2(1.5, TILE);
+  const rampBoxLongGeo = new THREE.BoxGeometry(TILE, 0.08, L);
+  const rampBoxWideGeo = new THREE.BoxGeometry(L, 0.08, TILE);
+  const rampMat = new THREE.MeshStandardMaterial({ color: 0x333344, roughness: 0.7, metalness: 0.5 });
+  const railMat = new THREE.MeshStandardMaterial({ color: 0xff6600, emissive: 0xff4400, emissiveIntensity: 1.8, roughness: 0.3, metalness: 0.6 });
+  const postGeo = new THREE.CylinderGeometry(0.04, 0.04, 0.5, 8);
+  const railGeo = new THREE.BoxGeometry(TILE * 0.92, 0.04, 0.04);
+  const railGeoZ = new THREE.BoxGeometry(0.04, 0.04, TILE * 0.92);
+
   // Helper mesh builders to prevent code duplication
-  function createCrateMesh(s) {
+  function createCrateMesh() {
     const crateGroup = new THREE.Group();
-    const box = new THREE.Mesh(new THREE.BoxGeometry(s, s, s), crateMat);
-    box.position.y = s / 2;
+    const box = new THREE.Mesh(crateBoxGeo, crateMat);
+    box.position.y = crateS / 2;
     box.castShadow = true;
     box.receiveShadow = true;
     crateGroup.add(box);
 
-    const stripe1 = new THREE.Mesh(new THREE.BoxGeometry(s * 0.06, s + 0.01, s + 0.01), crateStripeMat);
-    stripe1.position.y = s / 2;
+    const stripe1 = new THREE.Mesh(crateStripeGeo1, crateStripeMat);
+    stripe1.position.y = crateS / 2;
     crateGroup.add(stripe1);
-    const stripe2 = new THREE.Mesh(new THREE.BoxGeometry(s + 0.01, s + 0.01, s * 0.06), crateStripeMat);
-    stripe2.position.y = s / 2;
+    const stripe2 = new THREE.Mesh(crateStripeGeo2, crateStripeMat);
+    stripe2.position.y = crateS / 2;
     crateGroup.add(stripe2);
 
-    const cornerSize = 0.08;
     const corners = [[-1,-1],[-1,1],[1,-1],[1,1]];
     for (const [dx, dz] of corners) {
-      const corner = new THREE.Mesh(new THREE.BoxGeometry(cornerSize, s + 0.02, cornerSize), crateCornerMat);
-      corner.position.set(dx * (s / 2 - cornerSize / 2), s / 2, dz * (s / 2 - cornerSize / 2));
+      const corner = new THREE.Mesh(crateCornerGeo, crateCornerMat);
+      corner.position.set(dx * (crateS / 2 - crateCornerSize / 2), crateS / 2, dz * (crateS / 2 - crateCornerSize / 2));
       crateGroup.add(corner);
     }
 
-    const glowLedGeo = new THREE.BoxGeometry(s * 0.15, s * 0.15, s * 1.02);
-    const glowLedMat = new THREE.MeshStandardMaterial({ color: 0xffaa00, emissive: 0xff8800, emissiveIntensity: 2.0 });
-    const glowLed = new THREE.Mesh(glowLedGeo, glowLedMat);
-    glowLed.position.y = s / 2;
+    const glowLed = new THREE.Mesh(crateGlowGeo, crateGlowLedMat);
+    glowLed.position.y = crateS / 2;
     crateGroup.add(glowLed);
     return crateGroup;
   }
 
-  function createBarrelMesh(rBarrel, hBarrel) {
+  function createBarrelMesh() {
     const barrelGroup = new THREE.Group();
-    const coreGeo = new THREE.CylinderGeometry(rBarrel * 0.8, rBarrel * 0.8, hBarrel * 0.95, 12);
-    const coreMat = new THREE.MeshStandardMaterial({
-      color: 0x33ff66,
-      emissive: 0x22cc44,
-      emissiveIntensity: 2.5,
-      roughness: 0.2,
-      metalness: 0.1
-    });
-    const plasmaCore = new THREE.Mesh(coreGeo, coreMat);
+    const plasmaCore = new THREE.Mesh(barrelCoreGeo, barrelCoreMat);
     plasmaCore.position.y = hBarrel / 2;
     barrelGroup.add(plasmaCore);
 
-    const colGeo = new THREE.BoxGeometry(0.04, hBarrel, 0.04);
     for (let a = 0; a < 4; a++) {
       const angle = (a * Math.PI) / 2;
-      const col = new THREE.Mesh(colGeo, barrelMat);
+      const col = new THREE.Mesh(barrelColGeo, barrelMat);
       col.position.set(Math.cos(angle) * (rBarrel + 0.01), hBarrel / 2, Math.sin(angle) * (rBarrel + 0.01));
       col.castShadow = true;
       barrelGroup.add(col);
     }
 
     for (const hFrac of [0.25, 0.5, 0.75]) {
-      const band = new THREE.Mesh(new THREE.CylinderGeometry(rBarrel * 1.05, rBarrel * 1.05, 0.04, 12), barrelBandMat);
+      const band = new THREE.Mesh(barrelBandGeo, barrelBandMat);
       band.position.y = hBarrel * hFrac;
       barrelGroup.add(band);
     }
 
-    const topRimGeo = new THREE.TorusGeometry(rBarrel * 0.9, 0.02, 6, 12);
-    const topRim = new THREE.Mesh(topRimGeo, barrelRimMat);
+    const topRim = new THREE.Mesh(barrelRimGeo, barrelRimMat);
     topRim.position.y = hBarrel - 0.01;
     topRim.rotation.x = Math.PI / 2;
     barrelGroup.add(topRim);
 
-    const bottomRim = new THREE.Mesh(topRimGeo, barrelRimMat);
+    const bottomRim = new THREE.Mesh(barrelRimGeo, barrelRimMat);
     bottomRim.position.y = 0.01;
     bottomRim.rotation.x = Math.PI / 2;
     barrelGroup.add(bottomRim);
@@ -445,8 +478,6 @@ export function buildCourse(scene) {
 
       // 1. Render Upper Platform Slab (for values 5, 9, 6, 7, 8)
       if (v === 5 || v === 9 || v === 6 || v === 7 || v === 8) {
-        const slabGeo = new THREE.BoxGeometry(TILE, 0.15, TILE);
-        const slabMat = new THREE.MeshStandardMaterial({ color: 0x1f1f2e, roughness: 0.6, metalness: 0.8 });
         const slab = new THREE.Mesh(slabGeo, slabMat);
         slab.position.set(cx, 1.425, cz);
         slab.receiveShadow = true;
@@ -454,8 +485,6 @@ export function buildCourse(scene) {
         course.add(slab);
 
         // Support columns/pillars going down to y = 0
-        const pillarGeo = new THREE.CylinderGeometry(0.04, 0.04, 1.35, 8);
-        const pillarMat = new THREE.MeshStandardMaterial({ color: 0x222233, metalness: 0.8, roughness: 0.2 });
         const offsets = [
           [-TILE/2 + 0.1, -TILE/2 + 0.1],
           [TILE/2 - 0.1, -TILE/2 + 0.1],
@@ -478,20 +507,20 @@ export function buildCourse(scene) {
 
         const yOffset = v === 6 ? 1.5 : 0;
 
-        const box = new THREE.Mesh(new THREE.BoxGeometry(TILE, 2.5, TILE), wallMat.clone());
+        const box = new THREE.Mesh(wallBoxGeo, wallMat.clone());
         box.position.set(0, yOffset + 1.25, 0);
         box.castShadow = true;
         box.receiveShadow = true;
         wallGroup.add(box);
 
-        const cap = new THREE.Mesh(new THREE.BoxGeometry(TILE, 0.08, TILE), wallCapMat.clone());
+        const cap = new THREE.Mesh(wallCapGeo, wallCapMat.clone());
         cap.position.set(0, yOffset + 2.5 + 0.04, 0);
         wallGroup.add(cap);
 
-        const stripX = new THREE.Mesh(new THREE.BoxGeometry(TILE + 0.02, 0.04, 0.04), wallStripMat.clone());
+        const stripX = new THREE.Mesh(wallStripGeo, wallStripMat.clone());
         stripX.position.set(0, yOffset + 1.0, hw);
         wallGroup.add(stripX);
-        const stripX2 = new THREE.Mesh(new THREE.BoxGeometry(TILE + 0.02, 0.04, 0.04), wallStripMat.clone());
+        const stripX2 = new THREE.Mesh(wallStripGeo, wallStripMat.clone());
         stripX2.position.set(0, yOffset + 1.0, -hw);
         wallGroup.add(stripX2);
 
@@ -501,32 +530,22 @@ export function buildCourse(scene) {
 
       // 3. Build Crates & Barrels
       if (v === 2) {
-        // Crate on lower level (y=0)
-        const s = TILE * 0.72;
-        const crateGroup = createCrateMesh(s);
+        const crateGroup = createCrateMesh();
         crateGroup.position.set(cx, 0, cz);
         course.add(crateGroup);
-        obstacles.push({ type: 'crate', y: 0, x: cx - s / 2, z: cz - s / 2, w: s, h: s, mesh: crateGroup, hp: 2, maxHp: 2, gridPos: { r, c } });
+        obstacles.push({ type: 'crate', y: 0, x: cx - crateS / 2, z: cz - crateS / 2, w: crateS, h: crateS, mesh: crateGroup, hp: 2, maxHp: 2, gridPos: { r, c } });
       } else if (v === 7) {
-        // Crate on upper level (y=1.5)
-        const s = TILE * 0.72;
-        const crateGroup = createCrateMesh(s);
+        const crateGroup = createCrateMesh();
         crateGroup.position.set(cx, 1.5, cz);
         course.add(crateGroup);
-        obstacles.push({ type: 'crate', y: 1.5, x: cx - s / 2, z: cz - s / 2, w: s, h: s, mesh: crateGroup, hp: 2, maxHp: 2, gridPos: { r, c } });
+        obstacles.push({ type: 'crate', y: 1.5, x: cx - crateS / 2, z: cz - crateS / 2, w: crateS, h: crateS, mesh: crateGroup, hp: 2, maxHp: 2, gridPos: { r, c } });
       } else if (v === 3) {
-        // Barrel on lower level (y=0)
-        const rBarrel = TILE * 0.28;
-        const hBarrel = TILE * 0.65;
-        const barrelGroup = createBarrelMesh(rBarrel, hBarrel);
+        const barrelGroup = createBarrelMesh();
         barrelGroup.position.set(cx, 0, cz);
         course.add(barrelGroup);
         obstacles.push({ type: 'barrel', y: 0, x: cx, z: cz, r: rBarrel, mesh: barrelGroup, hp: 1, maxHp: 1, gridPos: { r, c } });
       } else if (v === 8) {
-        // Barrel on upper level (y=1.5)
-        const rBarrel = TILE * 0.28;
-        const hBarrel = TILE * 0.65;
-        const barrelGroup = createBarrelMesh(rBarrel, hBarrel);
+        const barrelGroup = createBarrelMesh();
         barrelGroup.position.set(cx, 1.5, cz);
         course.add(barrelGroup);
         obstacles.push({ type: 'barrel', y: 1.5, x: cx, z: cz, r: rBarrel, mesh: barrelGroup, hp: 1, maxHp: 1, gridPos: { r, c } });
@@ -534,12 +553,6 @@ export function buildCourse(scene) {
 
       // 4. Build Ramps with Railings
       if (v === 'RU' || v === 'RD' || v === 'RL' || v === 'RR') {
-        const L = Math.sqrt(TILE * TILE + 1.5 * 1.5);
-        const theta = Math.atan2(1.5, TILE);
-        const rampMat = new THREE.MeshStandardMaterial({ color: 0x333344, roughness: 0.7, metalness: 0.5 });
-        const railMat = new THREE.MeshStandardMaterial({ color: 0xff6600, emissive: 0xff4400, emissiveIntensity: 1.8, roughness: 0.3, metalness: 0.6 });
-        const postGeo = new THREE.CylinderGeometry(0.04, 0.04, 0.5, 8);
-        const railGeo = new THREE.BoxGeometry(TILE * 0.92, 0.04, 0.04);
         const halfT = TILE / 2;
         const railY = 0.54;
         const postY = 0.29;
@@ -550,8 +563,7 @@ export function buildCourse(scene) {
           rampGroup.position.set(cx, 0.75, cz);
           rampGroup.rotation.x = (v === 'RU') ? -theta : theta;
 
-          const rampGeo = new THREE.BoxGeometry(TILE, 0.08, L);
-          const ramp = new THREE.Mesh(rampGeo, rampMat);
+          const ramp = new THREE.Mesh(rampBoxLongGeo, rampMat);
           ramp.receiveShadow = true;
           ramp.castShadow = true;
           rampGroup.add(ramp);
@@ -577,13 +589,10 @@ export function buildCourse(scene) {
           rampGroup.position.set(cx, 0.75, cz);
           rampGroup.rotation.z = (v === 'RL') ? -theta : theta;
 
-          const rampGeo = new THREE.BoxGeometry(L, 0.08, TILE);
-          const ramp = new THREE.Mesh(rampGeo, rampMat);
+          const ramp = new THREE.Mesh(rampBoxWideGeo, rampMat);
           ramp.receiveShadow = true;
           ramp.castShadow = true;
           rampGroup.add(ramp);
-
-          const railGeoZ = new THREE.BoxGeometry(0.04, 0.04, TILE * 0.92);
 
           for (const side of [-1, 1]) {
             const sz = side * (halfT - inset);

@@ -12,12 +12,14 @@ const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x06060e);
 scene.fog = new THREE.FogExp2(0x06060e, 0.025);
 
+const isMobileOrTablet = window.matchMedia('(max-width: 1024px)').matches || window.matchMedia('(hover: none) and (pointer: coarse)').matches;
+
 const camera = new THREE.PerspectiveCamera(50, 1, 0.1, 80);
 camera.position.set(0, 8, -10);
 
 const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setSize(1, 1);
-renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, isMobileOrTablet ? 1.05 : 2.0));
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
@@ -30,8 +32,8 @@ scene.add(ambientLight);
 const sunLight = new THREE.DirectionalLight(0xfffdf6, 2.5);
 sunLight.position.set(15, 25, 10);
 sunLight.castShadow = true;
-sunLight.shadow.mapSize.width = 2048; // sharper shadows
-sunLight.shadow.mapSize.height = 2048;
+sunLight.shadow.mapSize.width = isMobileOrTablet ? 512 : 2048; // sharper shadows on desktop, low-overhead shadows on tablet/mobile
+sunLight.shadow.mapSize.height = isMobileOrTablet ? 512 : 2048;
 sunLight.shadow.camera.near = 0.1;
 sunLight.shadow.camera.far = 60;
 sunLight.shadow.camera.left = -30;
@@ -165,9 +167,9 @@ function placeDroid() {
     headlight = null;
   }
   headlight = new THREE.SpotLight(0xffffff, 8, 20, Math.PI / 4, 0.5, 1.2);
-  headlight.castShadow = true;
-  headlight.shadow.mapSize.width = 1024;
-  headlight.shadow.mapSize.height = 1024;
+  headlight.castShadow = !isMobileOrTablet;
+  headlight.shadow.mapSize.width = isMobileOrTablet ? 256 : 1024;
+  headlight.shadow.mapSize.height = isMobileOrTablet ? 256 : 1024;
   headlight.shadow.camera.near = 0.5;
   headlight.shadow.camera.far = 25;
   headlight.shadow.bias = -0.0005;
@@ -983,24 +985,54 @@ function drawMinimap() {
       const v = MAP[r][c];
       const x = c * scaleX;
       const y = r * scaleY;
-      if (v === 1) {
-        ctx.fillStyle = '#3a3a5a';
+
+      // Elevated platform floor base
+      if (v === 5 || v === 9 || v === 6 || v === 7 || v === 8) {
+        ctx.fillStyle = '#1c1c2e';
         ctx.fillRect(x, y, scaleX, scaleY);
-      } else if (v === 2) {
+      }
+
+      // Render walls
+      if (v === 1 || v === 6) {
+        ctx.fillStyle = v === 6 ? '#5a5a7a' : '#3a3a5a';
+        ctx.fillRect(x, y, scaleX, scaleY);
+      }
+      // Crates
+      else if (v === 2 || v === 7) {
         ctx.fillStyle = '#8B7355';
         ctx.fillRect(x + 1, y + 1, scaleX - 2, scaleY - 2);
-      } else if (v === 3) {
+      }
+      // Barrels
+      else if (v === 3 || v === 8) {
         ctx.fillStyle = '#556B2F';
         ctx.beginPath();
         ctx.arc(x + scaleX / 2, y + scaleY / 2, Math.min(scaleX, scaleY) * 0.3, 0, Math.PI * 2);
         ctx.fill();
-      } else if (v === 9) {
+      }
+      // Ramps with rise-direction arrows
+      else if (['RU', 'RD', 'RL', 'RR'].includes(v)) {
+        ctx.fillStyle = '#3a5a6e';
+        ctx.fillRect(x, y, scaleX, scaleY);
+        ctx.fillStyle = '#44ffaa';
+        ctx.font = '7px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        let arrow = '▲';
+        if (v === 'RD') arrow = '▼';
+        if (v === 'RL') arrow = '◀';
+        if (v === 'RR') arrow = '▶';
+        ctx.fillText(arrow, x + scaleX / 2, y + scaleY / 2);
+      }
+      // Goal
+      else if (v === 9) {
         ctx.fillStyle = '#e94560';
         ctx.font = 'bold 10px sans-serif';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
         ctx.fillText('\u2605', x + scaleX / 2, y + scaleY / 2);
-      } else if (v === 'S') {
+      }
+      // Spawn
+      else if (v === 'S') {
         ctx.fillStyle = 'rgba(233,69,96,0.2)';
         ctx.beginPath();
         ctx.arc(x + scaleX / 2, y + scaleY / 2, Math.min(scaleX, scaleY) * 0.3, 0, Math.PI * 2);
@@ -1081,16 +1113,22 @@ export function init() {
     const btn = document.getElementById(btnId);
     if (!btn) return;
 
-    btn.addEventListener('pointerdown', e => {
+    const press = e => {
       e.preventDefault();
       keys[keyName] = true;
-    });
+    };
     const release = e => {
       e.preventDefault();
       keys[keyName] = false;
     };
+
+    btn.addEventListener('pointerdown', press);
+    btn.addEventListener('touchstart', press, { passive: false });
+
     btn.addEventListener('pointerup', release);
+    btn.addEventListener('touchend', release, { passive: false });
     btn.addEventListener('pointercancel', release);
+    btn.addEventListener('touchcancel', release, { passive: false });
     btn.addEventListener('pointerout', release);
     btn.addEventListener('pointerleave', release);
   };
@@ -1101,25 +1139,31 @@ export function init() {
   touchSetup('btn-right', 'arrowright');
 
   const shootBtn = document.getElementById('btn-shoot');
-  shootBtn?.addEventListener('pointerdown', e => {
+  const triggerShoot = e => {
     e.preventDefault();
     if (running && !won) fireLaser();
-  });
+  };
+  shootBtn?.addEventListener('pointerdown', triggerShoot);
+  shootBtn?.addEventListener('touchstart', triggerShoot, { passive: false });
 
   const hoverBtn = document.getElementById('btn-hover');
-  hoverBtn?.addEventListener('pointerdown', e => {
+  const triggerHover = e => {
     e.preventDefault();
     hovering = !hovering;
     updateHoverUI();
-  });
+  };
+  hoverBtn?.addEventListener('pointerdown', triggerHover);
+  hoverBtn?.addEventListener('touchstart', triggerHover, { passive: false });
 
   const boostBtn = document.getElementById('btn-boost');
-  boostBtn?.addEventListener('pointerdown', e => {
+  const triggerBoost = e => {
     e.preventDefault();
     if (running && !won && boostCooldownTimer <= 0 && !boostActive) {
       activateBoost();
     }
-  });
+  };
+  boostBtn?.addEventListener('pointerdown', triggerBoost);
+  boostBtn?.addEventListener('touchstart', triggerBoost, { passive: false });
 
   window.addEventListener('resize', resizeRenderer);
 }
