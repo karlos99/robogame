@@ -6,9 +6,14 @@ body {
   color: #d0d0e0;
   overflow: hidden;
   height: 100vh;
+  height: 100dvh;
 }
 
-#app { height:100vh; width:100vw; }
+#app {
+  height: 100vh;
+  height: 100dvh;
+  width: 100vw;
+}
 
 .screen { display:none; width:100%; height:100%; position:relative; }
 .screen.active { display:block; }
@@ -30,7 +35,8 @@ body {
   display:flex;
   flex-direction:column;
   gap:14px;
-  max-height:calc(100vh - 24px);
+  max-height: calc(100vh - 24px);
+  max-height: calc(100dvh - 24px);
   overflow-y:auto;
 }
 #builder-ui h1 {
@@ -368,12 +374,22 @@ body {
   #touch-controls {
     display: flex;
   }
+  #minimap-container {
+    bottom: auto;
+    top: 55px;
+    right: 12px;
+  }
 }
 
 /* Check if the user device has touch capability */
 @media (hover: none) and (pointer: coarse) {
   #touch-controls {
     display: flex;
+  }
+  #minimap-container {
+    bottom: auto;
+    top: 55px;
+    right: 12px;
   }
 }
 
@@ -413,29 +429,91 @@ body {
 #btn-right { right: 0; top: 45px; width: 40px; height: 40px; }
 
 .touch-group-right {
-  display: flex;
-  align-items: center;
-  gap: 16px;
+  position: relative;
+  width: 130px;
+  height: 130px;
   pointer-events: auto;
 }
 
 .action-btn {
-  position: static;
-  width: 60px;
-  height: 60px;
-  font-size: 0.75em;
+  font-size: 0.7em;
   text-transform: uppercase;
   letter-spacing: 0.5px;
 }
-.action-btn.primary {
-  width: 75px;
-  height: 75px;
+
+#btn-shoot {
+  bottom: 0;
+  right: 0;
+  width: 70px;
+  height: 70px;
   background: rgba(233, 69, 96, 0.85);
   border-color: rgba(233, 69, 96, 0.3);
   font-size: 0.85em;
   font-weight: 800;
   box-shadow: 0 4px 15px rgba(233, 69, 96, 0.35);
+  z-index: 2;
 }
-.action-btn.primary:active {
+#btn-shoot:active {
   background: #e94560;
 }
+
+#btn-hover {
+  bottom: 0;
+  left: 0;
+  width: 50px;
+  height: 50px;
+}
+#btn-hover.active-state {
+  background: #44ffaa;
+  border-color: #44ffaa;
+  color: #0a0a14;
+}
+
+#btn-boost {
+  top: 0;
+  right: 0;
+  width: 50px;
+  height: 50px;
+  background: rgba(255, 120, 0, 0.75);
+  border-color: rgba(255, 120, 0, 0.3);
+  box-shadow: 0 4px 15px rgba(255, 120, 0, 0.25);
+}
+#btn-boost:active {
+  background: rgba(255, 120, 0, 1);
+}
+#btn-boost.boosting {
+  background: #ffcc00;
+  color: #000;
+  box-shadow: 0 0 15px #ffcc00;
+}
+#btn-boost.cooldown {
+  opacity: 0.4;
+  background: rgba(80, 80, 80, 0.5);
+  border-color: rgba(255, 255, 255, 0.1);
+  box-shadow: none;
+}
+
+/* PWA Install Button */
+.pwa-install-btn {
+  padding: 11px 0;
+  background: rgba(255, 255, 255, 0.05);
+  color: #00ff88;
+  border: 1px solid rgba(0, 255, 136, 0.3);
+  border-radius: 6px;
+  font-size: 0.9em;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  letter-spacing: 0.5px;
+  box-shadow: 0 4px 12px rgba(0, 255, 136, 0.1);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+.pwa-install-btn:hover {
+  background: rgba(0, 255, 136, 0.1);
+  transform: scale(1.02);
+  box-shadow: 0 6px 18px rgba(0, 255, 136, 0.25);
+}
+

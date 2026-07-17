@@ -207,6 +207,7 @@ export async function start(config) {
   won = false;
   droidY = 0;
   hovering = false;
+  updateHoverUI();
   boostActive = false;
   boostTimer = 0;
   boostCooldownTimer = 0;
@@ -278,6 +279,7 @@ export function cleanup() {
   droid = null;
   droidY = 0;
   hovering = false;
+  updateHoverUI();
 }
 
 function loop() {
@@ -947,6 +949,21 @@ function render() {
     boostFill.style.width = '100%';
     boostFill.style.background = 'linear-gradient(90deg, #00ff88, #00cc66)';
   }
+
+  // Update touch boost button UI
+  const boostBtn = document.getElementById('btn-boost');
+  if (boostBtn) {
+    if (boostActive) {
+      boostBtn.classList.add('boosting');
+      boostBtn.classList.remove('cooldown');
+    } else if (boostCooldownTimer > 0) {
+      boostBtn.classList.remove('boosting');
+      boostBtn.classList.add('cooldown');
+    } else {
+      boostBtn.classList.remove('boosting');
+      boostBtn.classList.remove('cooldown');
+    }
+  }
 }
 
 function drawMinimap() {
@@ -1025,6 +1042,17 @@ function drawMinimap() {
   ctx.fill();
 }
 
+function updateHoverUI() {
+  const hoverBtn = document.getElementById('btn-hover');
+  if (hoverBtn) {
+    if (hovering) {
+      hoverBtn.classList.add('active-state');
+    } else {
+      hoverBtn.classList.remove('active-state');
+    }
+  }
+}
+
 export function init() {
   document.addEventListener('keydown', e => {
     keys[e.key.toLowerCase()] = true;
@@ -1034,6 +1062,7 @@ export function init() {
     }
     if (e.key.toLowerCase() === 'h') {
       hovering = !hovering;
+      updateHoverUI();
     }
     if (e.key.toLowerCase() === 'enter') {
       if (running && !won && boostCooldownTimer <= 0 && !boostActive) {
@@ -1079,6 +1108,15 @@ export function init() {
   hoverBtn?.addEventListener('pointerdown', e => {
     e.preventDefault();
     hovering = !hovering;
+    updateHoverUI();
+  });
+
+  const boostBtn = document.getElementById('btn-boost');
+  boostBtn?.addEventListener('pointerdown', e => {
+    e.preventDefault();
+    if (running && !won && boostCooldownTimer <= 0 && !boostActive) {
+      activateBoost();
+    }
   });
 
   window.addEventListener('resize', resizeRenderer);
