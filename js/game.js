@@ -1045,5 +1045,41 @@ export function init() {
   });
   document.addEventListener('keyup', e => { keys[e.key.toLowerCase()] = false; });
 
+  // Mobile/Touch Overlay Buttons
+  const touchSetup = (btnId, keyName) => {
+    const btn = document.getElementById(btnId);
+    if (!btn) return;
+
+    btn.addEventListener('pointerdown', e => {
+      e.preventDefault();
+      keys[keyName] = true;
+    });
+    const release = e => {
+      e.preventDefault();
+      keys[keyName] = false;
+    };
+    btn.addEventListener('pointerup', release);
+    btn.addEventListener('pointercancel', release);
+    btn.addEventListener('pointerout', release);
+    btn.addEventListener('pointerleave', release);
+  };
+
+  touchSetup('btn-up', 'arrowup');
+  touchSetup('btn-down', 'arrowdown');
+  touchSetup('btn-left', 'arrowleft');
+  touchSetup('btn-right', 'arrowright');
+
+  const shootBtn = document.getElementById('btn-shoot');
+  shootBtn?.addEventListener('pointerdown', e => {
+    e.preventDefault();
+    if (running && !won) fireLaser();
+  });
+
+  const hoverBtn = document.getElementById('btn-hover');
+  hoverBtn?.addEventListener('pointerdown', e => {
+    e.preventDefault();
+    hovering = !hovering;
+  });
+
   window.addEventListener('resize', resizeRenderer);
 }

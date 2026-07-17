@@ -184,33 +184,42 @@ export function init() {
     colorIndices[key] = closestColorIndex(config.colors[key]);
   }
 
+  // 1. Part Selector Logic
   document.querySelectorAll('.part-group[data-options]').forEach(group => {
     const part = group.dataset.part;
     const options = group.dataset.options.split(',');
-    const labels = group.dataset.labels.split(',');
+    const labels = group.dataset.labels ? group.dataset.labels.split(',') : options;
     let currentIdx = options.indexOf(config[part]);
+    if (currentIdx === -1) currentIdx = 0;
     const optionSpan = group.querySelector('.current-option');
 
     const prevPart = () => {
       currentIdx = (currentIdx - 1 + options.length) % options.length;
       config[part] = options[currentIdx];
-      optionSpan.textContent = labels[currentIdx];
+      if (optionSpan) optionSpan.textContent = labels[currentIdx];
       updateDroid();
     };
     const nextPart = () => {
       currentIdx = (currentIdx + 1) % options.length;
       config[part] = options[currentIdx];
-      optionSpan.textContent = labels[currentIdx];
+      if (optionSpan) optionSpan.textContent = labels[currentIdx];
       updateDroid();
     };
 
-    group.querySelectorAll('.arrow-btn')[0].addEventListener('click', prevPart);
-    group.querySelectorAll('.arrow-btn')[1].addEventListener('click', nextPart);
+    const arrows = group.querySelectorAll('.part-selector .arrow-btn');
+    if (arrows.length >= 2) {
+      arrows[0].addEventListener('click', prevPart);
+      arrows[1].addEventListener('click', nextPart);
+    }
+
+    if (optionSpan) optionSpan.textContent = labels[currentIdx];
   });
 
+  // 2. Color Selector Logic
   document.querySelectorAll('.color-swatch').forEach(swatch => {
     const colorKey = swatch.dataset.colorKey;
     const selector = swatch.closest('.color-selector');
+    if (!selector) return;
     const arrows = selector.querySelectorAll('.arrow-btn');
 
     const prevColor = () => {
@@ -228,8 +237,12 @@ export function init() {
       updateDroid();
     };
 
-    arrows[0].addEventListener('click', prevColor);
-    arrows[1].addEventListener('click', nextColor);
+    if (arrows.length >= 2) {
+      arrows[0].addEventListener('click', prevColor);
+      arrows[1].addEventListener('click', nextColor);
+    }
+
+    swatch.style.background = config.colors[colorKey];
   });
 
   updateDroid();
