@@ -1,170 +1,179 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Jayden Robot Game</title>
-<link rel="stylesheet" href="style.css">
-<link rel="manifest" href="manifest.json">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Jayden Robot Game</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="manifest" href="manifest.json">
 </head>
+
 <body>
-<div id="app">
-  <div id="screen-welcome" class="screen active">
-    <div class="welcome-bg"></div>
-    <div id="welcome-ui">
-      <h1 class="welcome-title">Jayden Robot Game</h1>
-      <p class="welcome-subtitle">Select mission and build your droid</p>
-      
-      <div class="level-select-container">
-        <h3>Missions</h3>
-        <div class="level-grid">
-          <div class="level-card active" data-level="0">
-            <span class="level-num">01</span>
-            <div class="level-info">
-              <span class="level-name">Training Gateway</span>
-              <span class="level-status">Unlocked</span>
+  <div id="app">
+    <div id="screen-welcome" class="screen active">
+      <div class="welcome-bg"></div>
+      <div id="welcome-ui">
+        <h1 class="welcome-title">Jayden's Robot Game</h1>
+        <p class="welcome-subtitle">Select mission and build your droid</p>
+
+        <div class="level-select-container">
+          <h3>Missions</h3>
+          <div class="level-grid">
+            <div class="level-card active" data-level="0">
+              <span class="level-num">01</span>
+              <div class="level-info">
+                <span class="level-name">Training Gateway</span>
+                <span class="level-status">Unlocked</span>
+              </div>
             </div>
-          </div>
-          <div class="level-card locked" data-level="1">
-            <span class="level-num">02</span>
-            <div class="level-info">
-              <span class="level-name">Double-Ramp Loop</span>
-              <span class="level-status">Locked</span>
+            <div class="level-card locked" data-level="1">
+              <span class="level-num">02</span>
+              <div class="level-info">
+                <span class="level-name">Double-Ramp Loop</span>
+                <span class="level-status">Locked</span>
+              </div>
             </div>
-          </div>
-          <div class="level-card locked" data-level="2">
-            <span class="level-num">03</span>
-            <div class="level-info">
-              <span class="level-name">The Fortress</span>
-              <span class="level-status">Locked</span>
+            <div class="level-card locked" data-level="2">
+              <span class="level-num">03</span>
+              <div class="level-info">
+                <span class="level-name">The Fortress</span>
+                <span class="level-status">Locked</span>
+              </div>
             </div>
-          </div>
-          <div class="level-card" data-level="3">
-            <span class="level-num">??</span>
-            <div class="level-info">
-              <span class="level-name">Random Maze</span>
-              <span class="level-status">Unlocked</span>
+            <div class="level-card" data-level="3">
+              <span class="level-num">??</span>
+              <div class="level-info">
+                <span class="level-name">Random Maze</span>
+                <span class="level-status">Unlocked</span>
+              </div>
             </div>
           </div>
         </div>
+
+        <button id="enter-garage-btn">Enter Droid Garage</button>
+        <button id="pwa-install-btn" class="pwa-install-btn" style="display: none;">Install App</button>
       </div>
-      
-      <button id="enter-garage-btn">Enter Droid Garage</button>
-      <button id="pwa-install-btn" class="pwa-install-btn" style="display: none;">Install App</button>
+    </div>
+
+    <div id="screen-builder" class="screen">
+      <div id="builder-canvas-container"></div>
+      <div id="builder-ui">
+        <h1>Droid Builder</h1>
+        <div class="part-group" data-part="head" data-options="dome,sensor,antenna,visor,box,turret"
+          data-labels="Dome,Sensor,Antenna,Visor,Box,Turret">
+          <label>Head</label>
+          <div class="part-selector">
+            <button class="arrow-btn arrow-left">◀</button>
+            <span class="current-option">Dome</span>
+            <button class="arrow-btn arrow-right">▶</button>
+          </div>
+          <div class="color-selector">
+            <button class="arrow-btn arrow-left">◀</button>
+            <div class="color-swatch" data-color-key="head" style="background:#e8e8e8"></div>
+            <button class="arrow-btn arrow-right">▶</button>
+          </div>
+        </div>
+        <div class="part-group" data-part="body" data-options="standard,heavy,slim,sleek,hover_body,mech"
+          data-labels="Standard,Heavy,Slim,Sleek,Hover,Mech">
+          <label>Body</label>
+          <div class="part-selector">
+            <button class="arrow-btn arrow-left">◀</button>
+            <span class="current-option">Standard</span>
+            <button class="arrow-btn arrow-right">▶</button>
+          </div>
+          <div class="color-selector">
+            <button class="arrow-btn arrow-left">◀</button>
+            <div class="color-swatch" data-color-key="body" style="background:#f0f0f0"></div>
+            <button class="arrow-btn arrow-right">▶</button>
+          </div>
+        </div>
+        <div class="part-group" data-part="base" data-options="wheels,tracks,hovers" data-labels="Wheels,Tracks,Hover">
+          <label>Base</label>
+          <div class="part-selector">
+            <button class="arrow-btn arrow-left">◀</button>
+            <span class="current-option">Wheels</span>
+            <button class="arrow-btn arrow-right">▶</button>
+          </div>
+          <div class="color-selector">
+            <button class="arrow-btn arrow-left">◀</button>
+            <div class="color-swatch" data-color-key="base" style="background:#444444"></div>
+            <button class="arrow-btn arrow-right">▶</button>
+          </div>
+        </div>
+        <div class="part-group" data-part="accessory" data-options="none,arm,shield,jetpack,radar"
+          data-labels="None,Arm,Shield,Jet Pack,Radar">
+          <label>Accessory</label>
+          <div class="part-selector">
+            <button class="arrow-btn arrow-left">◀</button>
+            <span class="current-option">None</span>
+            <button class="arrow-btn arrow-right">▶</button>
+          </div>
+          <div class="color-selector">
+            <button class="arrow-btn arrow-left">◀</button>
+            <div class="color-swatch" data-color-key="accent" style="background:#2255aa"></div>
+            <button class="arrow-btn arrow-right">▶</button>
+          </div>
+        </div>
+        <div class="part-group" data-part="laser" data-color-key="laser">
+          <label>Laser Color</label>
+          <div class="color-selector">
+            <button class="arrow-btn arrow-left">◀</button>
+            <div class="color-swatch" data-color-key="laser" style="background:#ff2244"></div>
+            <button class="arrow-btn arrow-right">▶</button>
+          </div>
+        </div>
+        <div class="stats">
+          <span class="stat" id="stat-speed">Speed: 3</span>
+          <span class="stat" id="stat-handling">Turn: 3</span>
+          <span class="stat" id="stat-armor">Armor: 3</span>
+        </div>
+        <button id="launch-btn">Launch into Course</button>
+      </div>
+    </div>
+
+    <div id="screen-game" class="screen">
+      <div id="game-canvas-container"></div>
+      <div id="game-hud">
+        <div class="hud-left">
+          <span class="hud-text">WASD / Arrows = Move &mdash; Space = Shoot &mdash; H = Hover</span>
+          <div id="cooldown-bar">
+            <div id="cooldown-fill"></div>
+          </div>
+          <div id="boost-bar">
+            <div id="boost-fill"></div>
+          </div>
+        </div>
+        <button id="back-btn">Back to Builder</button>
+      </div>
+      <div id="win-overlay" class="hidden">
+        <div class="win-box">
+          <h2>Objective Complete</h2>
+          <p>Your droid reached the destination beacon.</p>
+          <button id="win-back-btn">Build Another Droid</button>
+        </div>
+      </div>
+      <div id="minimap-container">
+        <canvas id="minimap" width="120" height="90"></canvas>
+      </div>
+
+      <div id="touch-controls" class="touch-only">
+        <div class="touch-dpad">
+          <button id="btn-up" class="touch-btn">▲</button>
+          <button id="btn-left" class="touch-btn">◀</button>
+          <button id="btn-right" class="touch-btn">▶</button>
+          <button id="btn-down" class="touch-btn">▼</button>
+        </div>
+        <div class="touch-group-right">
+          <button id="btn-hover" class="touch-btn action-btn">Hover</button>
+          <button id="btn-boost" class="touch-btn action-btn">Boost</button>
+          <button id="btn-shoot" class="touch-btn action-btn primary">Shoot</button>
+        </div>
+      </div>
     </div>
   </div>
 
-  <div id="screen-builder" class="screen">
-    <div id="builder-canvas-container"></div>
-    <div id="builder-ui">
-      <h1>Droid Builder</h1>
-      <div class="part-group" data-part="head" data-options="dome,sensor,antenna,visor,box,turret" data-labels="Dome,Sensor,Antenna,Visor,Box,Turret">
-        <label>Head</label>
-        <div class="part-selector">
-          <button class="arrow-btn arrow-left">◀</button>
-          <span class="current-option">Dome</span>
-          <button class="arrow-btn arrow-right">▶</button>
-        </div>
-        <div class="color-selector">
-          <button class="arrow-btn arrow-left">◀</button>
-          <div class="color-swatch" data-color-key="head" style="background:#e8e8e8"></div>
-          <button class="arrow-btn arrow-right">▶</button>
-        </div>
-      </div>
-      <div class="part-group" data-part="body" data-options="standard,heavy,slim,sleek,hover_body,mech" data-labels="Standard,Heavy,Slim,Sleek,Hover,Mech">
-        <label>Body</label>
-        <div class="part-selector">
-          <button class="arrow-btn arrow-left">◀</button>
-          <span class="current-option">Standard</span>
-          <button class="arrow-btn arrow-right">▶</button>
-        </div>
-        <div class="color-selector">
-          <button class="arrow-btn arrow-left">◀</button>
-          <div class="color-swatch" data-color-key="body" style="background:#f0f0f0"></div>
-          <button class="arrow-btn arrow-right">▶</button>
-        </div>
-      </div>
-      <div class="part-group" data-part="base" data-options="wheels,tracks,hovers" data-labels="Wheels,Tracks,Hover">
-        <label>Base</label>
-        <div class="part-selector">
-          <button class="arrow-btn arrow-left">◀</button>
-          <span class="current-option">Wheels</span>
-          <button class="arrow-btn arrow-right">▶</button>
-        </div>
-        <div class="color-selector">
-          <button class="arrow-btn arrow-left">◀</button>
-          <div class="color-swatch" data-color-key="base" style="background:#444444"></div>
-          <button class="arrow-btn arrow-right">▶</button>
-        </div>
-      </div>
-      <div class="part-group" data-part="accessory" data-options="none,arm,shield,jetpack,radar" data-labels="None,Arm,Shield,Jet Pack,Radar">
-        <label>Accessory</label>
-        <div class="part-selector">
-          <button class="arrow-btn arrow-left">◀</button>
-          <span class="current-option">None</span>
-          <button class="arrow-btn arrow-right">▶</button>
-        </div>
-        <div class="color-selector">
-          <button class="arrow-btn arrow-left">◀</button>
-          <div class="color-swatch" data-color-key="accent" style="background:#2255aa"></div>
-          <button class="arrow-btn arrow-right">▶</button>
-        </div>
-      </div>
-      <div class="part-group" data-part="laser" data-color-key="laser">
-        <label>Laser Color</label>
-        <div class="color-selector">
-          <button class="arrow-btn arrow-left">◀</button>
-          <div class="color-swatch" data-color-key="laser" style="background:#ff2244"></div>
-          <button class="arrow-btn arrow-right">▶</button>
-        </div>
-      </div>
-      <div class="stats">
-        <span class="stat" id="stat-speed">Speed: 3</span>
-        <span class="stat" id="stat-handling">Turn: 3</span>
-        <span class="stat" id="stat-armor">Armor: 3</span>
-      </div>
-      <button id="launch-btn">Launch into Course</button>
-    </div>
-  </div>
-
-  <div id="screen-game" class="screen">
-    <div id="game-canvas-container"></div>
-    <div id="game-hud">
-      <div class="hud-left">
-        <span class="hud-text">WASD / Arrows = Move &mdash; Space = Shoot &mdash; H = Hover</span>
-        <div id="cooldown-bar"><div id="cooldown-fill"></div></div>
-        <div id="boost-bar"><div id="boost-fill"></div></div>
-      </div>
-      <button id="back-btn">Back to Builder</button>
-    </div>
-    <div id="win-overlay" class="hidden">
-      <div class="win-box">
-        <h2>Objective Complete</h2>
-        <p>Your droid reached the destination beacon.</p>
-        <button id="win-back-btn">Build Another Droid</button>
-      </div>
-    </div>
-    <div id="minimap-container">
-      <canvas id="minimap" width="120" height="90"></canvas>
-    </div>
-
-    <div id="touch-controls" class="touch-only">
-      <div class="touch-dpad">
-        <button id="btn-up" class="touch-btn">▲</button>
-        <button id="btn-left" class="touch-btn">◀</button>
-        <button id="btn-right" class="touch-btn">▶</button>
-        <button id="btn-down" class="touch-btn">▼</button>
-      </div>
-      <div class="touch-group-right">
-        <button id="btn-hover" class="touch-btn action-btn">Hover</button>
-        <button id="btn-boost" class="touch-btn action-btn">Boost</button>
-        <button id="btn-shoot" class="touch-btn action-btn primary">Shoot</button>
-      </div>
-    </div>
-  </div>
-</div>
-
-<script type="importmap">
+  <script type="importmap">
 {
   "imports": {
     "three": "https://unpkg.com/three@0.163.0/build/three.module.js",
@@ -172,6 +181,7 @@
   }
 }
 </script>
-<script type="module" src="js/app.js"></script>
+  <script type="module" src="js/app.js"></script>
 </body>
+
 </html>

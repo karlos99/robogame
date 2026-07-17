@@ -30,29 +30,33 @@ controls.maxDistance = 10;
 controls.maxPolarAngle = Math.PI / 2.1;
 controls.update();
 
-const ambientLight = new THREE.AmbientLight(0x404060, 0.5);
+const ambientLight = new THREE.AmbientLight(0xd0e0ff, 0.95);
 scene.add(ambientLight);
 
-const keyLight = new THREE.DirectionalLight(0xffeedd, 1.8);
-keyLight.position.set(4, 8, 6);
-keyLight.castShadow = true;
-keyLight.shadow.mapSize.width = 512;
-keyLight.shadow.mapSize.height = 512;
-keyLight.shadow.camera.near = 0.1;
-keyLight.shadow.camera.far = 20;
-keyLight.shadow.camera.left = -5;
-keyLight.shadow.camera.right = 5;
-keyLight.shadow.camera.top = 5;
-keyLight.shadow.camera.bottom = -5;
-scene.add(keyLight);
+const sunLight = new THREE.DirectionalLight(0xfffdf6, 2.5);
+sunLight.position.set(4, 8, 6);
+sunLight.castShadow = true;
+sunLight.shadow.mapSize.width = 512;
+sunLight.shadow.mapSize.height = 512;
+sunLight.shadow.camera.near = 0.1;
+sunLight.shadow.camera.far = 20;
+sunLight.shadow.camera.left = -5;
+sunLight.shadow.camera.right = 5;
+sunLight.shadow.camera.top = 5;
+sunLight.shadow.camera.bottom = -5;
+sunLight.shadow.bias = -0.0005;
+scene.add(sunLight);
 
-const fillLight = new THREE.DirectionalLight(0x6688ff, 0.6);
+const fillLight = new THREE.DirectionalLight(0xaaccff, 0.85);
 fillLight.position.set(-3, 4, -4);
 scene.add(fillLight);
 
-const rimLight = new THREE.DirectionalLight(0x88aaff, 0.4);
-rimLight.position.set(0, 1, -6);
-scene.add(rimLight);
+const backLight = new THREE.DirectionalLight(0xffebd0, 0.6);
+backLight.position.set(0, 2, -6);
+scene.add(backLight);
+
+const hemiLight = new THREE.HemisphereLight(0xd0e8ff, 0x3d352b, 1.4);
+scene.add(hemiLight);
 
 const floorGeo = new THREE.PlaneGeometry(8, 8);
 const floorMat = new THREE.MeshStandardMaterial({ color: 0x12121e, roughness: 0.9, metalness: 0.1 });
