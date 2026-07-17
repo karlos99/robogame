@@ -136,6 +136,12 @@ body {
 #launch-btn:hover { transform:scale(1.02); box-shadow:0 4px 20px rgba(233,69,96,0.4); }
 
 #screen-game { background:#0a0a14; }
+#screen-game * {
+  -webkit-user-select: none !important;
+  user-select: none !important;
+  -webkit-touch-callout: none !important;
+  -webkit-tap-highlight-color: transparent !important;
+}
 #game-canvas-container { position:absolute; inset:0; }
 #game-canvas-container canvas { display:block; }
 
@@ -209,7 +215,7 @@ body {
 
 #minimap-container {
   position:absolute;
-  bottom:12px;
+  top:90px;
   right:12px;
   border:1px solid #2a2a4a;
   border-radius:6px;
@@ -379,11 +385,6 @@ body {
   #touch-controls {
     display: flex;
   }
-  #minimap-container {
-    bottom: 160px;
-    top: auto;
-    right: 12px;
-  }
   .hud-text {
     display: none;
   }
@@ -393,11 +394,6 @@ body {
 @media (hover: none) and (pointer: coarse) {
   #touch-controls {
     display: flex;
-  }
-  #minimap-container {
-    bottom: 160px;
-    top: auto;
-    right: 12px;
   }
   .hud-text {
     display: none;
