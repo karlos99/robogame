@@ -1131,6 +1131,7 @@ export function init() {
     btn.addEventListener('touchcancel', release, { passive: false });
     btn.addEventListener('pointerout', release);
     btn.addEventListener('pointerleave', release);
+    btn.addEventListener('contextmenu', e => e.preventDefault());
   };
 
   touchSetup('btn-up', 'arrowup');
@@ -1164,6 +1165,14 @@ export function init() {
   };
   boostBtn?.addEventListener('pointerdown', triggerBoost);
   boostBtn?.addEventListener('touchstart', triggerBoost, { passive: false });
+
+  // Prevent browser context menus globally inside the touch controls container
+  const touchControls = document.getElementById('touch-controls');
+  touchControls?.addEventListener('contextmenu', e => e.preventDefault());
+  
+  shootBtn?.addEventListener('contextmenu', e => e.preventDefault());
+  hoverBtn?.addEventListener('contextmenu', e => e.preventDefault());
+  boostBtn?.addEventListener('contextmenu', e => e.preventDefault());
 
   window.addEventListener('resize', resizeRenderer);
 }

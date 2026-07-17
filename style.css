@@ -209,7 +209,7 @@ body {
 
 #minimap-container {
   position:absolute;
-  top:55px;
+  bottom:12px;
   right:12px;
   border:1px solid #2a2a4a;
   border-radius:6px;
@@ -379,12 +379,28 @@ body {
   #touch-controls {
     display: flex;
   }
+  #minimap-container {
+    bottom: 160px;
+    top: auto;
+    right: 12px;
+  }
+  .hud-text {
+    display: none;
+  }
 }
 
 /* Check if the user device has touch capability */
 @media (hover: none) and (pointer: coarse) {
   #touch-controls {
     display: flex;
+  }
+  #minimap-container {
+    bottom: 160px;
+    top: auto;
+    right: 12px;
+  }
+  .hud-text {
+    display: none;
   }
 }
 
