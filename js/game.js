@@ -576,6 +576,8 @@ function update() {
 
   if (boostActive) {
     maxSpeed *= BOOST_SPEED_MULT;
+    // Add continuous forward thrust during active boost to prevent drag from killing momentum
+    vForward += accelRate * stats.speed * 2.5;
     if (boostPush > 0) {
       vForward += maxSpeed * 1.5 * boostPush;
       boostPush = 0;

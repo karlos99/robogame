@@ -209,7 +209,7 @@ body {
 
 #minimap-container {
   position:absolute;
-  bottom:12px;
+  top:55px;
   right:12px;
   border:1px solid #2a2a4a;
   border-radius:6px;
@@ -368,16 +368,16 @@ body {
   align-items: flex-end;
   pointer-events: none;
   z-index: 100;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
 }
 
 @media (max-width: 1024px) {
   #touch-controls {
     display: flex;
-  }
-  #minimap-container {
-    bottom: auto;
-    top: 55px;
-    right: 12px;
   }
 }
 
@@ -386,11 +386,6 @@ body {
   #touch-controls {
     display: flex;
   }
-  #minimap-container {
-    bottom: auto;
-    top: 55px;
-    right: 12px;
-  }
 }
 
 .touch-dpad {
@@ -398,6 +393,12 @@ body {
   width: 130px;
   height: 130px;
   pointer-events: auto;
+  touch-action: none;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
 }
 
 .touch-btn {
@@ -408,14 +409,18 @@ body {
   border-radius: 50%;
   font-weight: bold;
   cursor: pointer;
-  user-select: none;
   display: flex;
   align-items: center;
   justify-content: center;
   transition: background 0.1s, transform 0.05s;
   backdrop-filter: blur(4px);
   -webkit-tap-highlight-color: transparent;
-  touch-action: manipulation;
+  touch-action: none;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
 }
 .touch-btn:active {
   background: #e94560;
@@ -433,6 +438,12 @@ body {
   width: 130px;
   height: 130px;
   pointer-events: auto;
+  touch-action: none;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
 }
 
 .action-btn {
