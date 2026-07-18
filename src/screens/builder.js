@@ -152,10 +152,23 @@ function updateStats() {
 
 export function startAnim() {
   animRunning = true;
+  if (engine && !engine.isDisposed) {
+    engine.runRenderLoop(() => {
+      if (scene && !scene.isDisposed) {
+        const time = performance.now() / 1000;
+        for (const s of starfield) {
+          const twinkle = Math.sin(time * 2 + s.position.x * 0.5 + s.position.z * 0.3) * 0.15 + 0.6;
+          s.scaling.setAll(twinkle);
+        }
+        scene.render();
+      }
+    });
+  }
 }
 
 export function stopAnim() {
   animRunning = false;
+  if (engine) engine.stopRenderLoop();
 }
 
 export function init() {

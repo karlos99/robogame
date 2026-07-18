@@ -748,6 +748,8 @@ function render() {
     else if (boostCooldownTimer > 0) { boostBtn.classList.remove('boosting'); boostBtn.classList.add('cooldown'); }
     else { boostBtn.classList.remove('boosting'); boostBtn.classList.remove('cooldown'); }
   }
+
+  scene.render();
 }
 
 function updateHoverUI() {
