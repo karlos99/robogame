@@ -125,7 +125,7 @@ function placeDroid() {
     droid = null;
   }
   droid = buildDroid(droidConfig, scene);
-  shadowGen.addShadowCastingMesh(droid);
+  shadowGen.addShadowCaster(droid);
 
   const start = courseData.startPos;
   pos.x = start.x;
