@@ -337,7 +337,9 @@ export function buildCourse(scene, shadowGen) {
         box.receiveShadows = true;
 
         const cap = MeshBuilder.CreateBox('wallCap', { width: TILE, height: 0.08, depth: TILE }, scene);
-        cap.material = wallCapMat.clone('wallCapMat_' + r + '_' + c);
+        const capMat = wallCapMat.clone('wallCapMat_' + r + '_' + c);
+        capMat.alpha = 0;
+        cap.material = capMat;
         cap.position.set(0, yOffset + 2.54, 0);
         cap.parent = wallGroup;
         cap.isPickable = false;

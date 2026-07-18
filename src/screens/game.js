@@ -325,69 +325,74 @@ function fireLaser() {
   const fwd = new Vector3(Math.sin(angle), 0, Math.cos(angle));
   const laserColor = hexToColor3(laserColorHex);
 
-  const laserGroup = new TransformNode('laser', scene);
   const laserMat = new StandardMaterial('laserMat', scene);
   laserMat.emissiveColor = laserColor;
   laserMat.disableLighting = true;
   laserMat.alpha = 0.95;
-  const laserMesh = MeshBuilder.CreateCylinder('laser', { diameter: 0.05, height: 0.65, tessellation: 6 }, scene);
-  laserMesh.material = laserMat;
-  laserMesh.rotation.x = Math.PI / 2;
-  laserMesh.parent = laserGroup;
-  laserMesh.isPickable = false;
+
+  const beam = MeshBuilder.CreateBox('laser', { width: 0.05, height: 0.05, depth: 0.7 }, scene);
+  beam.material = laserMat;
+  beam.isPickable = false;
 
   const muzzleMat = new StandardMaterial('muzzleMat', scene);
   muzzleMat.emissiveColor = laserColor.scale(2.2);
   muzzleMat.disableLighting = true;
   muzzleMat.alpha = 0.8;
-  const muzzle = MeshBuilder.CreateSphere('muzzle', { diameter: 0.14, segments: 8 }, scene);
+  const muzzle = MeshBuilder.CreateSphere('muzzle', { diameter: 0.12, segments: 6 }, scene);
   muzzle.material = muzzleMat;
-  muzzle.parent = laserGroup;
   muzzle.isPickable = false;
 
   const bodyHeight = droidConfig.body === 'heavy' ? 0.9 : droidConfig.body === 'slim' ? 1.3 : 1.0;
   const bodyRadius = droidConfig.body === 'heavy' ? 0.65 : droidConfig.body === 'slim' ? 0.40 : 0.55;
 
-  laserGroup.position.set(pos.x, bodyHeight * 0.55, pos.z);
-  laserGroup.position.addInPlace(fwd.scale(bodyRadius + 0.3));
+  const startPos = new Vector3(pos.x, bodyHeight * 0.55, pos.z);
+  startPos.addInPlace(fwd.scale(bodyRadius + 0.3));
+  beam.position.copyFrom(startPos);
+  beam.lookAt(beam.position.add(fwd));
+  muzzle.position.copyFrom(beam.position).addInPlace(fwd.scale(0.38));
 
-  const laserLight = new PointLight('laserLight', laserGroup.position.clone(), scene);
+  const laserLight = new PointLight('laserLight', startPos, scene);
   laserLight.diffuse = laserColor;
   laserLight.intensity = 2.5;
   laserLight.range = 4;
 
   lasers.push({
-    mesh: laserGroup,
+    beam,
+    muzzle,
     light: laserLight,
     dir: fwd.clone(),
-    spawnTime: performance.now() / 1000,
-    startPos: laserGroup.position.clone(),
+    spawnTime: now,
+    startPos: startPos.clone(),
   });
 }
 
 function updateLasers() {
   for (let i = lasers.length - 1; i >= 0; i--) {
     const l = lasers[i];
-    const distFromStart = Vector3.Distance(l.mesh.position, l.startPos);
+    const distFromStart = Vector3.Distance(l.beam.position, l.startPos);
 
     if (distFromStart > LASER_RANGE) {
-      l.mesh.dispose();
+      l.beam.dispose();
+      l.muzzle.dispose();
       if (l.light) l.light.dispose();
       lasers.splice(i, 1);
       continue;
     }
 
     const step = LASER_SPEED * (1 / 60);
-    l.mesh.position.addInPlace(l.dir.scale(step));
-    if (l.light) l.light.position.copyFrom(l.mesh.position);
+    const newPos = l.beam.position.add(l.dir.scale(step));
+    l.beam.position.copyFrom(newPos);
+    l.beam.lookAt(l.beam.position.add(l.dir));
+    l.muzzle.position.copyFrom(newPos).addInPlace(l.dir.scale(0.38));
+    if (l.light) l.light.position.copyFrom(newPos);
 
-    const lx = l.mesh.position.x;
-    const lz = l.mesh.position.z;
+    const lx = l.beam.position.x;
+    const lz = l.beam.position.z;
     let hitSomething = false;
 
     for (let oIdx = courseData.obstacles.length - 1; oIdx >= 0; oIdx--) {
       const o = courseData.obstacles[oIdx];
-      const ly = l.mesh.position.y;
+      const ly = l.beam.position.y;
 
       if (o.type === 'wall') {
         const wallMinY = o.y || 0;
@@ -408,7 +413,7 @@ function updateLasers() {
         hitSomething = true;
         if (o.type === 'crate' || o.type === 'barrel') {
           o.hp--;
-          spawnDriftDust(scene, l.mesh.position, o.type === 'crate' ? 0xffcc33 : 0x66ff88);
+          spawnDriftDust(scene, l.beam.position, o.type === 'crate' ? 0xffcc33 : 0x66ff88);
           if (o.hp <= 0) {
             const explPos = o.mesh.position.clone();
             explPos.y += 0.2;
@@ -419,23 +424,25 @@ function updateLasers() {
             courseData.obstacles.splice(oIdx, 1);
           }
         } else {
-          spawnDriftDust(scene, l.mesh.position, 0x888899);
+          spawnDriftDust(scene, l.beam.position, 0x888899);
         }
         break;
       }
     }
 
     if (hitSomething) {
-      l.mesh.dispose();
+      l.beam.dispose();
+      l.muzzle.dispose();
       if (l.light) l.light.dispose();
       lasers.splice(i, 1);
       continue;
     }
 
     const fade = 1 - (distFromStart / LASER_RANGE);
-    l.mesh.children[0].material.alpha = fade;
+    l.beam.material.alpha = fade;
+    l.muzzle.material.alpha = fade * 0.8;
     if (l.light) l.light.intensity = fade * 2.5;
-    if (distFromStart > LASER_RANGE * 0.8) l.mesh.children[1].isVisible = false;
+    if (distFromStart > LASER_RANGE * 0.8) l.muzzle.isVisible = false;
   }
 }
 
@@ -711,24 +718,24 @@ function render() {
   if (dust) dust.update();
   updateBeacon(elapsed);
 
-  // Occlusion transparency — keep maze walls see-through so the robot is always visible
+  // Occlusion transparency — make walls blocking the camera view transparent
   if (droid && camera && courseData && courseData.courseGroup) {
     const camToDroid = droid.position.subtract(camera.position);
     const droidDist = camToDroid.length();
     const dir = camToDroid.normalize();
 
     courseData.courseGroup.getChildMeshes().forEach(child => {
-      if (child.name === 'wallBox' || child.name === 'wallCap') {
+      if (child.name === 'wallBox') {
         const wallPos = child.getAbsolutePosition();
         const camToWall = wallPos.subtract(camera.position);
         const wallDist = camToWall.length();
-        let targetOpacity = 0.2;
-        if (wallDist < droidDist && wallDist > 0.5) {
+        let targetOpacity = 1.0;
+        if (wallDist < droidDist) {
           const dot = Vector3.Dot(camToWall, dir);
           if (dot > 0) {
             const projection = dir.scale(dot);
             const perpDist = camToWall.subtract(projection).length();
-            if (perpDist < 1.5) targetOpacity = 0.0;
+            if (perpDist < 1.3) targetOpacity = 0.2;
           }
         }
         if (child.material) {
