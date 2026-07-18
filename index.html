@@ -5,8 +5,8 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Jayden Robot Game</title>
-  <link rel="stylesheet" href="style.css">
-  <link rel="manifest" href="manifest.json">
+  <link rel="stylesheet" href="/style.css">
+  <link rel="manifest" href="/manifest.json">
 </head>
 
 <body>
@@ -64,63 +64,63 @@
           data-labels="Dome,Sensor,Antenna,Visor,Box,Turret">
           <label>Head</label>
           <div class="part-selector">
-            <button class="arrow-btn arrow-left">◀</button>
+            <button class="arrow-btn arrow-left">&#9664;</button>
             <span class="current-option">Dome</span>
-            <button class="arrow-btn arrow-right">▶</button>
+            <button class="arrow-btn arrow-right">&#9654;</button>
           </div>
           <div class="color-selector">
-            <button class="arrow-btn arrow-left">◀</button>
+            <button class="arrow-btn arrow-left">&#9664;</button>
             <div class="color-swatch" data-color-key="head" style="background:#e8e8e8"></div>
-            <button class="arrow-btn arrow-right">▶</button>
+            <button class="arrow-btn arrow-right">&#9654;</button>
           </div>
         </div>
         <div class="part-group" data-part="body" data-options="standard,heavy,slim,sleek,hover_body,mech"
           data-labels="Standard,Heavy,Slim,Sleek,Hover,Mech">
           <label>Body</label>
           <div class="part-selector">
-            <button class="arrow-btn arrow-left">◀</button>
+            <button class="arrow-btn arrow-left">&#9664;</button>
             <span class="current-option">Standard</span>
-            <button class="arrow-btn arrow-right">▶</button>
+            <button class="arrow-btn arrow-right">&#9654;</button>
           </div>
           <div class="color-selector">
-            <button class="arrow-btn arrow-left">◀</button>
+            <button class="arrow-btn arrow-left">&#9664;</button>
             <div class="color-swatch" data-color-key="body" style="background:#f0f0f0"></div>
-            <button class="arrow-btn arrow-right">▶</button>
+            <button class="arrow-btn arrow-right">&#9654;</button>
           </div>
         </div>
         <div class="part-group" data-part="base" data-options="wheels,tracks,hovers" data-labels="Wheels,Tracks,Hover">
           <label>Base</label>
           <div class="part-selector">
-            <button class="arrow-btn arrow-left">◀</button>
+            <button class="arrow-btn arrow-left">&#9664;</button>
             <span class="current-option">Wheels</span>
-            <button class="arrow-btn arrow-right">▶</button>
+            <button class="arrow-btn arrow-right">&#9654;</button>
           </div>
           <div class="color-selector">
-            <button class="arrow-btn arrow-left">◀</button>
+            <button class="arrow-btn arrow-left">&#9664;</button>
             <div class="color-swatch" data-color-key="base" style="background:#444444"></div>
-            <button class="arrow-btn arrow-right">▶</button>
+            <button class="arrow-btn arrow-right">&#9654;</button>
           </div>
         </div>
         <div class="part-group" data-part="accessory" data-options="none,arm,shield,jetpack,radar"
           data-labels="None,Arm,Shield,Jet Pack,Radar">
           <label>Accessory</label>
           <div class="part-selector">
-            <button class="arrow-btn arrow-left">◀</button>
+            <button class="arrow-btn arrow-left">&#9664;</button>
             <span class="current-option">None</span>
-            <button class="arrow-btn arrow-right">▶</button>
+            <button class="arrow-btn arrow-right">&#9654;</button>
           </div>
           <div class="color-selector">
-            <button class="arrow-btn arrow-left">◀</button>
+            <button class="arrow-btn arrow-left">&#9664;</button>
             <div class="color-swatch" data-color-key="accent" style="background:#2255aa"></div>
-            <button class="arrow-btn arrow-right">▶</button>
+            <button class="arrow-btn arrow-right">&#9654;</button>
           </div>
         </div>
         <div class="part-group" data-part="laser" data-color-key="laser">
           <label>Laser Color</label>
           <div class="color-selector">
-            <button class="arrow-btn arrow-left">◀</button>
+            <button class="arrow-btn arrow-left">&#9664;</button>
             <div class="color-swatch" data-color-key="laser" style="background:#ff2244"></div>
-            <button class="arrow-btn arrow-right">▶</button>
+            <button class="arrow-btn arrow-right">&#9654;</button>
           </div>
         </div>
         <div class="stats">
@@ -159,10 +159,10 @@
 
       <div id="touch-controls" class="touch-only">
         <div class="touch-dpad">
-          <button id="btn-up" class="touch-btn">▲</button>
-          <button id="btn-left" class="touch-btn">◀</button>
-          <button id="btn-right" class="touch-btn">▶</button>
-          <button id="btn-down" class="touch-btn">▼</button>
+          <button id="btn-up" class="touch-btn">&#9650;</button>
+          <button id="btn-left" class="touch-btn">&#9664;</button>
+          <button id="btn-right" class="touch-btn">&#9654;</button>
+          <button id="btn-down" class="touch-btn">&#9660;</button>
         </div>
         <div class="touch-group-right">
           <button id="btn-hover" class="touch-btn action-btn">Hover</button>
@@ -173,15 +173,7 @@
     </div>
   </div>
 
-  <script type="importmap">
-{
-  "imports": {
-    "three": "https://unpkg.com/three@0.163.0/build/three.module.js",
-    "three/addons/": "https://unpkg.com/three@0.163.0/examples/jsm/"
-  }
-}
-</script>
-  <script type="module" src="js/app.js"></script>
+  <script type="module" src="/src/main.js"></script>
 </body>
 
 </html>
