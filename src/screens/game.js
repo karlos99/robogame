@@ -536,13 +536,39 @@ function update() {
   const r = stats.hitboxRadius;
   let newX = pos.x + vx, newZ = pos.z + vz;
 
-  if (!collides(newX, newZ, r)) {
-    pos.x = newX; pos.z = newZ;
-  } else {
-    if (!collides(newX, pos.z, r)) { pos.x = newX; vz *= 0.15; }
-    else if (!collides(pos.x, newZ, r)) { pos.z = newZ; vx *= 0.15; }
-    else { vx = 0; vz = 0; vForward = 0; vRight = 0; }
-  }
+    if (!collides(newX, newZ, r)) {
+      pos.x = newX; pos.z = newZ;
+    } else {
+      if (!collides(newX, pos.z, r)) { pos.x = newX; vz *= 0.15; }
+      else if (!collides(pos.x, newZ, r)) { pos.z = newZ; vx *= 0.15; }
+      else {
+        vx = 0; vz = 0; vForward = 0; vRight = 0;
+        // Push droid out of overlapping obstacles
+        for (const o of courseData.obstacles) {
+          if (o.type === 'wall' || o.type === 'crate') {
+            const cx = Math.max(o.x, Math.min(pos.x, o.x + o.w));
+            const cz = Math.max(o.z, Math.min(pos.z, o.z + o.h));
+            const dx = pos.x - cx;
+            const dz = pos.z - cz;
+            const d = Math.sqrt(dx * dx + dz * dz);
+            if (d < r && d > 0.001) {
+              const push = (r - d) / d;
+              pos.x += dx * push;
+              pos.z += dz * push;
+            }
+          } else if (o.type === 'barrel') {
+            const dx = pos.x - o.x;
+            const dz = pos.z - o.z;
+            const d = Math.sqrt(dx * dx + dz * dz);
+            if (d < r + o.r && d > 0.001) {
+              const push = (r + o.r - d) / d;
+              pos.x += dx * push;
+              pos.z += dz * push;
+            }
+          }
+        }
+      }
+    }
 
   const audioSpeedRatio = maxSpeed > 0 ? Math.abs(vForward) / maxSpeed : 0;
   AudioSystem.updateEngine(audioSpeedRatio);
@@ -685,24 +711,24 @@ function render() {
   if (dust) dust.update();
   updateBeacon(elapsed);
 
-  // Occlusion transparency
+  // Occlusion transparency — keep maze walls see-through so the robot is always visible
   if (droid && camera && courseData && courseData.courseGroup) {
     const camToDroid = droid.position.subtract(camera.position);
     const droidDist = camToDroid.length();
     const dir = camToDroid.normalize();
 
     courseData.courseGroup.getChildMeshes().forEach(child => {
-      if (child.name === 'wallBox') {
+      if (child.name === 'wallBox' || child.name === 'wallCap') {
         const wallPos = child.getAbsolutePosition();
         const camToWall = wallPos.subtract(camera.position);
         const wallDist = camToWall.length();
-        let targetOpacity = 1.0;
-        if (wallDist < droidDist) {
+        let targetOpacity = 0.2;
+        if (wallDist < droidDist && wallDist > 0.5) {
           const dot = Vector3.Dot(camToWall, dir);
           if (dot > 0) {
             const projection = dir.scale(dot);
             const perpDist = camToWall.subtract(projection).length();
-            if (perpDist < 1.3) targetOpacity = 0.25;
+            if (perpDist < 1.5) targetOpacity = 0.0;
           }
         }
         if (child.material) {
@@ -769,7 +795,7 @@ export function init() {
     if (e.key.toLowerCase() === 'enter') {
       if (running && !won && boostCooldownTimer <= 0 && !boostActive) { e.preventDefault(); activateBoost(); }
     }
-    if (['arrowup', 'arrowdown', 'arrowleft', 'arrowright', ' '].includes(e.key)) e.preventDefault();
+    if (['arrowup', 'arrowdown', 'arrowleft', 'arrowright', ' '].includes(e.key.toLowerCase())) e.preventDefault();
   });
   document.addEventListener('keyup', e => { keys[e.key.toLowerCase()] = false; });
 
@@ -779,7 +805,15 @@ export function init() {
   shootBtn?.addEventListener('touchstart', triggerShoot, { passive: false });
 
   const hoverBtn = document.getElementById('btn-hover');
-  const triggerHover = e => { e.preventDefault(); hovering = !hovering; updateHoverUI(); };
+  let lastHoverTime = 0;
+  const triggerHover = e => {
+    e.preventDefault();
+    const now = Date.now();
+    if (now - lastHoverTime < 200) return;
+    lastHoverTime = now;
+    hovering = !hovering;
+    updateHoverUI();
+  };
   hoverBtn?.addEventListener('pointerdown', triggerHover);
   hoverBtn?.addEventListener('touchstart', triggerHover, { passive: false });
 
