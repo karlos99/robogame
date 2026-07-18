@@ -402,8 +402,8 @@ body {
 
 .touch-dpad {
   position: relative;
-  width: 130px;
-  height: 130px;
+  width: 170px;
+  height: 170px;
   pointer-events: auto;
   touch-action: none;
   -webkit-user-select: none;
@@ -433,6 +433,7 @@ body {
   -ms-user-select: none;
   user-select: none;
   -webkit-touch-callout: none;
+  font-size: 1.1em;
 }
 .touch-btn:active {
   background: #e94560;
@@ -440,10 +441,10 @@ body {
   transform: scale(0.92);
 }
 
-#btn-up { top: 0; left: 45px; width: 40px; height: 40px; }
-#btn-down { bottom: 0; left: 45px; width: 40px; height: 40px; }
-#btn-left { left: 0; top: 45px; width: 40px; height: 40px; }
-#btn-right { right: 0; top: 45px; width: 40px; height: 40px; }
+#btn-up { top: 0; left: 57px; width: 56px; height: 56px; }
+#btn-down { bottom: 0; left: 57px; width: 56px; height: 56px; }
+#btn-left { left: 0; top: 57px; width: 56px; height: 56px; }
+#btn-right { right: 0; top: 57px; width: 56px; height: 56px; }
 
 .touch-group-right {
   position: relative;

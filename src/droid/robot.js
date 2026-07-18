@@ -22,6 +22,10 @@ function hexToColor3(hex) {
 
 const texCache = {};
 
+export function clearTexCache() {
+  for (const k in texCache) delete texCache[k];
+}
+
 function loadTex(scene, path, repeatX = 1, repeatY = 1) {
   if (texCache[path]) return texCache[path];
   const tex = new Texture(path, scene);

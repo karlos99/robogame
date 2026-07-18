@@ -10,7 +10,7 @@ import { MeshBuilder } from '@babylonjs/core/Meshes/meshBuilder';
 import { StandardMaterial } from '@babylonjs/core/Materials/standardMaterial';
 import { TransformNode } from '@babylonjs/core/Meshes/transformNode';
 import { ShadowGenerator } from '@babylonjs/core/Lights/Shadows/shadowGenerator';
-import { buildDroid } from '../droid/robot.js';
+import { buildDroid, clearTexCache } from '../droid/robot.js';
 import { buildCourse, updateBeacon, loadTextures } from '../world/course.js';
 import { circleRectCollision, circleCircleCollision, getFloorHeight, getStartPos, getGoalPos, MAP, COLS, ROWS, TILE, W, H } from '../world/maps.js';
 import { createStarfield, createDustParticles, spawnExplosion, spawnDriftDust, updateDynamicParticles, disposeEnvironment } from '../effects/particles.js';
@@ -124,6 +124,7 @@ function placeDroid() {
     droid.dispose();
     droid = null;
   }
+  clearTexCache();
   droid = buildDroid(droidConfig, scene);
   shadowGen.addShadowCaster(droid);
 
