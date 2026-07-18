@@ -102,6 +102,8 @@ export function buildDroid(cfg, scene) {
     case 'sleek': bodyRadius = 0.50; bodyHeight = 1.1; break;
     case 'hover_body': bodyRadius = 0.60; bodyHeight = 0.5; break;
     case 'mech': bodyRadius = 0.55; bodyHeight = 1.0; break;
+    case 'sphere': bodyRadius = 0.55; bodyHeight = 1.1; break;
+    case 'insect': bodyRadius = 0.50; bodyHeight = 1.05; break;
     default: bodyRadius = 0.55; bodyHeight = 1.0; break;
   }
 
@@ -195,6 +197,42 @@ export function buildDroid(cfg, scene) {
         pipe.material = pipeMat;
         addMesh(pipe, bodyGroup, bodyHeight * 0.5, false);
         pipe.position.set(Math.cos(a) * (bodyRadius * 0.95), 0, Math.sin(a) * (bodyRadius * 0.95));
+      }
+      break;
+    }
+    case 'sphere': {
+      const sr = bodyRadius * 0.95;
+      const sphere = MeshBuilder.CreateSphere('sphereBody', { diameter: sr * 2, segments: 32 }, scene);
+      sphere.material = bodyMat;
+      addMesh(sphere, bodyGroup, bodyHeight / 2);
+      createTorus('equator', sr * 1.85, 0.025, 32, accentMat, bodyGroup, bodyHeight / 2).rotation.x = Math.PI / 2;
+      const meri = createTorus('meridian', sr * 1.85, 0.02, 32, accentMat, bodyGroup, bodyHeight / 2);
+      meri.rotation.z = Math.PI / 2;
+      createBox('frontPad', sr * 0.6, sr * 0.25, 0.04, panelMat, bodyGroup, bodyHeight / 2).position.z = sr * 0.92;
+      for (let i = -1; i <= 1; i += 2) {
+        createSphere('sideLight', 0.05, 8, frontGlowMat, bodyGroup, bodyHeight / 2, false).position.set(i * sr * 0.6, 0, sr * 0.3);
+      }
+      break;
+    }
+    case 'insect': {
+      const segH = bodyHeight * 0.18;
+      for (let s = 0; s < 3; s++) {
+        const segR = bodyRadius * (0.8 - s * 0.1);
+        createCylinder('seg', segR, segR, segH, 16, bodyMat, bodyGroup, segH * (s + 0.5));
+        if (s < 2) createCylinder('joint', segR * 0.25, segR * 0.25, 0.04, 8, darkMat, bodyGroup, segH * (s + 1.0));
+        const ridge = MeshBuilder.CreateCylinder('ridge', { diameterTop: 0, diameterBottom: segR * 0.3, height: segR * 0.2, tessellation: 4 }, scene);
+        ridge.material = accentMat;
+        addMesh(ridge, bodyGroup, segH * (s + 0.5) + segH * 0.35);
+        ridge.rotation.z = Math.PI;
+      }
+      for (let i = -1; i <= 1; i += 2) {
+        for (let s = 0; s < 3; s++) {
+          const spine = MeshBuilder.CreateCylinder('spine', { diameterTop: 0.01, diameterBottom: bodyRadius * 0.05, height: bodyRadius * 0.25, tessellation: 6 }, scene);
+          spine.material = accentMat;
+          addMesh(spine, bodyGroup, segH * (s + 0.5));
+          spine.position.set(i * (bodyRadius + 0.12), -bodyRadius * 0.1, 0);
+          spine.rotation.z = i * Math.PI / 5;
+        }
       }
       break;
     }
@@ -334,6 +372,62 @@ export function buildDroid(cfg, scene) {
       root.metadata.turretBarrel = headGroup.getChildren().find(c => c.name === 'barrel');
       break;
     }
+    case 'cyclops': {
+      const dome = MeshBuilder.CreateSphere('cyclopsDome', { diameter: bodyRadius * 0.9 * 2, segments: 24, slice: 0.55 }, scene);
+      dome.material = headMat;
+      addMesh(dome, headGroup, headY + 0.08);
+      const eyeMat = makeStandard(scene, '#ff2200', { emissive: '#ff4400', emissiveIntensity: 2.2 });
+      const eye = MeshBuilder.CreateSphere('cyclopsEye', { diameter: bodyRadius * 0.45 * 2, segments: 20 }, scene);
+      eye.material = eyeMat;
+      addMesh(eye, headGroup, headY + 0.1, false);
+      eye.position.z = bodyRadius * 0.18;
+      createTorus('eyeRing', bodyRadius * 0.48 * 2, 0.02, 20, chromeMat, headGroup, headY + 0.1).position.z = bodyRadius * 0.18;
+      for (let i = 0; i < 4; i++) {
+        const a = (i * Math.PI * 2) / 4 + Math.PI / 4;
+        const plate = createBox('eyePlate', bodyRadius * 0.12, bodyRadius * 0.08, 0.03, accentMat, headGroup, headY + 0.1);
+        plate.position.set(Math.cos(a) * bodyRadius * 0.48, Math.sin(a) * 0.02, bodyRadius * 0.12);
+      }
+      for (let i = -1; i <= 1; i += 2) {
+        createSphere('sideEye', 0.06, 8, frontGlowMat, headGroup, headY + 0.1, false).position.set(i * bodyRadius * 0.4, 0, bodyRadius * 0.0);
+      }
+      break;
+    }
+    case 'crown': {
+      createTorus('crownBase', bodyRadius * 0.8 * 2, 0.03, 20, accentMat, headGroup, headY + 0.05).rotation.x = Math.PI / 2;
+      createCylinder('crownDome', bodyRadius * 0.35, bodyRadius * 0.3, 0.14, 16, headMat, headGroup, headY + 0.12);
+      const spikeMat = makePBR(scene, headColor, 0.25, 0.8);
+      for (let i = 0; i < 6; i++) {
+        const a = (i * Math.PI * 2) / 6;
+        const spike = MeshBuilder.CreateCylinder('spike', { diameterTop: 0, diameterBottom: bodyRadius * 0.1, height: bodyRadius * 0.4, tessellation: 8 }, scene);
+        spike.material = spikeMat;
+        addMesh(spike, headGroup, headY + 0.28, false);
+        spike.position.set(Math.cos(a) * bodyRadius * 0.42, 0, Math.sin(a) * bodyRadius * 0.42);
+        createSphere('spikeTip', 0.03, 6, glowMat, headGroup, headY + 0.48, false).position.set(Math.cos(a) * bodyRadius * 0.42, 0, Math.sin(a) * bodyRadius * 0.42);
+      }
+      createSphere('crownJewel', bodyRadius * 0.1 * 2, 12, frontGlowMat, headGroup, headY + 0.12, false).position.z = bodyRadius * 0.35;
+      break;
+    }
+    case 'tri_eye': {
+      const tri = MeshBuilder.CreateCylinder('triBase', { diameterTop: bodyRadius * 0.65 * 2, diameterBottom: bodyRadius * 0.75 * 2, height: 0.07, tessellation: 3 }, scene);
+      tri.material = headMat;
+      addMesh(tri, headGroup, headY + 0.03);
+      tri.rotation.y = Math.PI / 6;
+      for (let i = 0; i < 3; i++) {
+        const a = (i * Math.PI * 2) / 3;
+        const eyeG = new TransformNode('eyeGrp', scene);
+        eyeG.parent = headGroup;
+        eyeG.position.set(Math.cos(a) * bodyRadius * 0.28, headY + 0.09, Math.sin(a) * bodyRadius * 0.28);
+        const eyeColor = ['#00ff44', '#ff4400', '#4488ff'][i];
+        const eyeMat = makeStandard(scene, eyeColor, { emissive: eyeColor, emissiveIntensity: 1.5 });
+        const eyeMesh = MeshBuilder.CreateCylinder('eye', { diameter: 0.1, height: 0.025, tessellation: 10 }, scene);
+        eyeMesh.material = eyeMat;
+        addMesh(eyeMesh, eyeG, 0, false);
+        eyeMesh.rotation.x = Math.PI / 2;
+        createTorus('eyeRim', 0.11, 0.01, 10, chromeMat, eyeG, 0).position.z = 0.015;
+      }
+      createCylinder('rearHub', bodyRadius * 0.12, bodyRadius * 0.15, 0.07, 8, darkMat, headGroup, headY + 0.07, false);
+      break;
+    }
   }
 
   // === BASE ===
@@ -412,6 +506,47 @@ export function buildDroid(cfg, scene) {
       root.metadata.hoverGlows = hoverGlows;
       break;
     }
+    case 'spider': {
+      createCylinder('spiderMount', bodyRadius * 0.35, bodyRadius * 0.5, 0.08, 12, baseMat, baseGroup, 0.04);
+      const legMat = makePBR(scene, baseColor, 0.6, 0.5);
+      for (let i = 0; i < 4; i++) {
+        const a = (i * Math.PI) / 2 + Math.PI / 4;
+        const legG = new TransformNode('leg_' + i, scene);
+        legG.parent = baseGroup;
+        legG.position.set(Math.cos(a) * bodyRadius * 0.3, -0.04, Math.sin(a) * bodyRadius * 0.3);
+        legG.rotation.y = a;
+        createCylinder('upJoint', 0.04, 0.05, 0.05, 8, darkMat, legG, 0.02);
+        const upLeg = MeshBuilder.CreateCylinder('upLeg', { diameterTop: 0.04, diameterBottom: 0.06, height: 0.22, tessellation: 8 }, scene);
+        upLeg.material = legMat;
+        addMesh(upLeg, legG, 0.04);
+        upLeg.position.z = 0.1;
+        upLeg.rotation.x = Math.PI / 4;
+        const loLeg = MeshBuilder.CreateCylinder('loLeg', { diameterTop: 0.03, diameterBottom: 0.05, height: 0.28, tessellation: 8 }, scene);
+        loLeg.material = legMat;
+        addMesh(loLeg, legG, 0.05);
+        loLeg.position.z = 0.32;
+        loLeg.rotation.x = -Math.PI / 7;
+        const foot = MeshBuilder.CreateCylinder('foot', { diameterTop: 0.06, diameterBottom: 0.08, height: 0.02, tessellation: 8 }, scene);
+        foot.material = darkMat;
+        addMesh(foot, legG, 0.04);
+        foot.position.z = 0.48;
+      }
+      break;
+    }
+    case 'ball': {
+      const ballR = bodyRadius * 1.1;
+      const ball = MeshBuilder.CreateSphere('ballBase', { diameter: ballR * 2 * 2, segments: 32 }, scene);
+      ball.material = baseMat;
+      addMesh(ball, baseGroup, ballR);
+      createTorus('ballEquator', ballR * 3.8, 0.02, 32, accentMat, baseGroup, ballR).rotation.x = Math.PI / 2;
+      const treadMat = makePBR(scene, '#111111', 0.95, 0.05);
+      for (let i = -2; i <= 2; i++) {
+        if (i === 0) continue;
+        createTorus('tread', ballR * 3.9, 0.01, 24, treadMat, baseGroup, ballR + i * ballR * 0.55);
+      }
+      createCylinder('ballConn', bodyRadius * 0.3, bodyRadius * 0.35, 0.08, 12, accentMat, baseGroup, ballR * 2 + 0.04);
+      break;
+    }
   }
 
   // === ACCESSORY ===
@@ -484,6 +619,36 @@ export function buildDroid(cfg, scene) {
       root.metadata.radarHead = radarHead;
       break;
     }
+    case 'cannon': {
+      const cannonG = new TransformNode('cannon', scene);
+      cannonG.parent = root;
+      cannonG.position.set(bodyRadius * 0.7, bodyHeight * 0.65, 0);
+      createCylinder('cannonMount', 0.06, 0.08, 0.14, 8, darkMat, cannonG, 0.07);
+      const barrel = MeshBuilder.CreateCylinder('cannonBarrel', { diameterTop: 0.08, diameterBottom: 0.12, height: 0.45, tessellation: 10 }, scene);
+      barrel.material = chromeMat;
+      addMesh(barrel, cannonG, 0.08);
+      barrel.rotation.x = Math.PI / 3;
+      barrel.position.z = 0.18;
+      createTorus('barrelRing', 0.14, 0.01, 10, accentMat, cannonG, 0.08).position.z = 0.22;
+      createCylinder('muzzle', 0.1, 0.08, 0.06, 8, darkMat, cannonG, 0.08).position.z = 0.35;
+      for (let i = 0; i < 3; i++) {
+        createTorus('coil', 0.16, 0.006, 12, frontGlowMat, cannonG, 0.04 + i * 0.02).position.z = 0.04;
+      }
+      break;
+    }
+    case 'drone': {
+      const droneN = new TransformNode('drone', scene);
+      droneN.parent = root;
+      droneN.position.set(bodyRadius * 1.0, bodyHeight + 0.25, 0);
+      const droneBody = MeshBuilder.CreateIcoSphere('droneBody', { radius: 0.07, subdivisions: 1 }, scene);
+      droneBody.material = accentMat;
+      addMesh(droneBody, droneN, 0, false);
+      createTorus('droneRing', 0.16, 0.007, 16, chromeMat, droneN, 0);
+      createSphere('droneLight', 0.035, 6, glowMat, droneN, 0, false);
+      root.metadata = root.metadata || {};
+      root.metadata.droneNode = droneN;
+      break;
+    }
   }
 
   // Forward indicator
@@ -496,20 +661,25 @@ export function buildDroid(cfg, scene) {
   createBox('fwdLine', 0.05, 0.03, 0.2, fwdMat, root, 0.12, false).position.z = bodyRadius + 0.08;
 
   // Stats
-  let speed = cfg.base === 'tracks' ? 4.8 : cfg.base === 'wheels' ? 6.5 : 5.6;
-  let turnSpeed = cfg.head === 'sensor' ? 0.075 : cfg.head === 'antenna' ? 0.065 : cfg.head === 'turret' ? 0.055 : 0.068;
-  let armor = cfg.body === 'heavy' ? 4 : cfg.body === 'mech' ? 5 : cfg.body === 'standard' ? 3 : cfg.body === 'hover_body' ? 2 : 2;
+  let speed = cfg.base === 'tracks' ? 4.8 : cfg.base === 'wheels' ? 6.5 : cfg.base === 'spider' ? 5.2 : cfg.base === 'ball' ? 5.0 : 5.6;
+  let turnSpeed = cfg.head === 'sensor' ? 0.075 : cfg.head === 'antenna' ? 0.065 : cfg.head === 'turret' ? 0.055 : cfg.head === 'cyclops' ? 0.058 : cfg.head === 'crown' ? 0.072 : cfg.head === 'tri_eye' ? 0.082 : 0.068;
+  let armor = cfg.body === 'heavy' ? 4 : cfg.body === 'mech' ? 5 : cfg.body === 'standard' ? 3 : cfg.body === 'hover_body' ? 2 : cfg.body === 'insect' ? 4 : cfg.body === 'sphere' ? 3 : 2;
 
   switch (cfg.head) {
     case 'visor': turnSpeed += 0.01; break;
     case 'box': armor += 1; break;
     case 'turret': turnSpeed -= 0.008; armor += 1; break;
+    case 'crown': speed += 0.5; break;
+    case 'tri_eye': turnSpeed += 0.005; break;
+    case 'cyclops': armor += 1; break;
   }
   switch (cfg.accessory) {
     case 'arm': armor += 1; break;
     case 'shield': armor += 2; speed -= 0.6; break;
     case 'jetpack': speed += 0.8; armor -= 1; break;
     case 'radar': turnSpeed += 0.012; break;
+    case 'cannon': armor += 1; speed -= 0.4; break;
+    case 'drone': turnSpeed += 0.008; speed += 0.3; break;
   }
   speed = Math.max(1, speed);
   armor = Math.max(1, armor);

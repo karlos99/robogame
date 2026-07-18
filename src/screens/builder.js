@@ -7,7 +7,8 @@ import { DirectionalLight } from '@babylonjs/core/Lights/directionalLight';
 import { MeshBuilder } from '@babylonjs/core/Meshes/meshBuilder';
 import { StandardMaterial } from '@babylonjs/core/Materials/standardMaterial';
 import { ShadowGenerator } from '@babylonjs/core/Lights/Shadows/shadowGenerator';
-import { buildDroid } from '../droid/robot.js';
+import { buildDroid, clearTexCache } from '../droid/robot.js';
+import { loadPresetModel, loadModelFromPath, getModelPresets, tintModelColors, disposeImportedModel } from '../ui/modelloader.js';
 import { config, closestColorIndex, PRIMARY_COLORS, getConfig } from '../core/state.js';
 
 const container = document.getElementById('builder-canvas-container');
@@ -15,6 +16,7 @@ const container = document.getElementById('builder-canvas-container');
 let engine, scene, camera, starfield;
 let currentDroid = null;
 let animRunning = false;
+let usingImportedModel = false;
 
 const colorIndices = {};
 
@@ -134,6 +136,10 @@ function initScene() {
 }
 
 function updateDroid() {
+  if (usingImportedModel) {
+    tintModelColors(currentDroid, config.colors.body, config.colors.head, config.colors.accent);
+    return;
+  }
   if (currentDroid) {
     currentDroid.dispose();
     currentDroid = null;
@@ -235,10 +241,71 @@ export function init() {
     swatch.style.background = config.colors[colorKey];
   });
 
+  // Model preset & import handling
+  const modelSelect = document.getElementById('model-preset-select');
+  const modelFile = document.getElementById('model-import-file');
+  const importBtn = document.getElementById('model-import-btn');
+
+  if (modelSelect) {
+    modelSelect.addEventListener('change', async () => {
+      const val = modelSelect.value;
+      disposeImportedModel();
+      if (currentDroid) { currentDroid.dispose(); currentDroid = null; }
+
+      if (val === '') {
+        disposeImportedModel();
+        usingImportedModel = false;
+        updateDroid();
+        return;
+      }
+
+      const presets = getModelPresets();
+      const preset = presets[parseInt(val)];
+      if (!preset) { updateDroid(); return; }
+
+      const model = await loadPresetModel(preset, scene);
+      if (model) {
+        clearTexCache();
+        currentDroid = model;
+        usingImportedModel = true;
+        tintModelColors(currentDroid, config.colors.body, config.colors.head, config.colors.accent);
+        updateStats();
+      } else {
+        updateDroid();
+      }
+    });
+  }
+
+  if (importBtn && modelFile) {
+    importBtn.addEventListener('click', () => modelFile.click());
+    modelFile.addEventListener('change', async (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      disposeImportedModel();
+      if (currentDroid) { currentDroid.dispose(); currentDroid = null; }
+      modelSelect.value = '';
+
+      const url = URL.createObjectURL(file);
+      const model = await loadModelFromPath(url, scene, 1.0);
+      URL.revokeObjectURL(url);
+      if (model) {
+        clearTexCache();
+        currentDroid = model;
+        usingImportedModel = true;
+        tintModelColors(currentDroid, config.colors.body, config.colors.head, config.colors.accent);
+        updateStats();
+      } else {
+        updateDroid();
+      }
+    });
+  }
+
   updateDroid();
 }
 
 export function cleanup() {
+  disposeImportedModel();
+  usingImportedModel = false;
   if (currentDroid) {
     currentDroid.dispose();
     currentDroid = null;

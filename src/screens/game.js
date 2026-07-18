@@ -632,6 +632,37 @@ function update() {
     if (droid.metadata?.thrusterCore && droid.metadata.thrusterCore.material) {
       droid.metadata.thrusterCore.material.emissiveColor = new Color3(0.07, 0.4, 0.87).scale(1.0 + Math.sin(time * 8) * 0.4);
     }
+    // Drone orbiting animation
+    if (droid.metadata?.droneNode) {
+      droid.metadata.droneNode.rotation.y = time * 3.0;
+      droid.metadata.droneNode.position.y = bodyHeight + 0.25 + Math.sin(time * 2.5) * 0.15;
+    }
+    // Ball base rolling animation
+    if (baseType === 'ball') {
+      const rollX = vForward * 5.0;
+      droid.getChildren().forEach(c => {
+        if (c.name === 'ballBase') c.rotation.x += rollX * 0.8;
+      });
+    }
+    // Spider legs idle animation
+    if (baseType === 'spider') {
+      const legChildren = droid.getChildren().filter(c => c.name && c.name.startsWith('leg_'));
+      for (const leg of legChildren) {
+        const idx = parseInt(leg.name.split('_')[1]) || 0;
+        leg.rotation.x = Math.sin(time * 3 + idx) * 0.12;
+      }
+      if (isMoving) {
+        for (const leg of legChildren) {
+          const idx = parseInt(leg.name.split('_')[1]) || 0;
+          leg.rotation.y += Math.sin(time * 6 + idx * 0.7) * 0.04;
+        }
+      }
+    }
+    // Cannon recoil when shooting
+    if (droid.metadata?.cannon && recoil > 0.1) {
+      const cannon = droid.getChildren().find(c => c.name === 'cannon');
+      if (cannon) cannon.position.z = -recoil * 0.15;
+    }
 
     droid.rotation.y = angle;
     droid.position.x = pos.x;
