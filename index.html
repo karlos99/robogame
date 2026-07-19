@@ -61,8 +61,8 @@
       <div id="builder-canvas-container"></div>
       <div id="builder-ui">
         <h1>Droid Builder</h1>
-        <div class="part-group" data-part="head" data-options="dome,sensor,antenna,visor,box,turret,cyclops,crown,tri_eye"
-          data-labels="Dome,Sensor,Antenna,Visor,Box,Turret,Cyclops,Crown,Tri-Eye">
+        <div class="part-group" data-part="head" data-options="dome,sensor,antenna,visor,box,turret,cyclops,crown,tri_eye,goggle,halo,astromech,protocol"
+          data-labels="Dome,Sensor,Antenna,Visor,Box,Turret,Cyclops,Crown,Tri-Eye,Goggle,Halo,Astromech,Protocol">
           <label>Head</label>
           <div class="part-selector">
             <button class="arrow-btn arrow-left">&#9664;</button>
@@ -75,8 +75,8 @@
             <button class="arrow-btn arrow-right">&#9654;</button>
           </div>
         </div>
-        <div class="part-group" data-part="body" data-options="standard,heavy,slim,sleek,hover_body,mech,sphere,insect"
-          data-labels="Standard,Heavy,Slim,Sleek,Hover,Mech,Sphere,Insect">
+        <div class="part-group" data-part="body" data-options="standard,heavy,slim,sleek,hover_body,mech,sphere,insect,tank,quad,astromech_body,protocol_body,assassin"
+          data-labels="Standard,Heavy,Slim,Sleek,Hover,Mech,Sphere,Insect,Tank,Quad,Astromech,Protocol,Assassin">
           <label>Body</label>
           <div class="part-selector">
             <button class="arrow-btn arrow-left">&#9664;</button>
@@ -89,7 +89,7 @@
             <button class="arrow-btn arrow-right">&#9654;</button>
           </div>
         </div>
-        <div class="part-group" data-part="base" data-options="wheels,tracks,hovers,spider,ball" data-labels="Wheels,Tracks,Hover,Spider,Ball">
+        <div class="part-group" data-part="base" data-options="wheels,tracks,hovers,spider,ball,legs,rotors,droideka" data-labels="Wheels,Tracks,Hover,Spider,Ball,Legs,Rotors,Droideka">
           <label>Base</label>
           <div class="part-selector">
             <button class="arrow-btn arrow-left">&#9664;</button>
@@ -102,8 +102,8 @@
             <button class="arrow-btn arrow-right">&#9654;</button>
           </div>
         </div>
-        <div class="part-group" data-part="accessory" data-options="none,arm,shield,jetpack,radar,cannon,drone"
-          data-labels="None,Arm,Shield,Jet Pack,Radar,Cannon,Drone">
+        <div class="part-group" data-part="accessory" data-options="none,arm,shield,jetpack,radar,cannon,drone,grapple,wing"
+          data-labels="None,Arm,Shield,Jet Pack,Radar,Cannon,Drone,Grapple,Wing">
           <label>Accessory</label>
           <div class="part-selector">
             <button class="arrow-btn arrow-left">&#9664;</button>
@@ -130,18 +130,8 @@
           <span class="stat" id="stat-armor">Armor: 3</span>
         </div>
         <div class="preset-models">
-          <label style="font-size:0.75em;font-weight:700;color:#e94560;text-transform:uppercase;">Base Model</label>
-          <select id="model-preset-select" style="background:rgba(20,20,40,0.8);color:#ccc;border:1px solid #2a2a4a;border-radius:5px;padding:8px;width:100%;font-size:0.8em;">
-            <option value="">Procedural Build</option>
-            <option value="0">Scout Mech</option>
-            <option value="1">Heavy Assault</option>
-            <option value="2">Speeder Bot</option>
-            <option value="3">Cargo Drone</option>
-          </select>
-          <div style="display:flex;gap:6px;margin-top:6px;">
-            <input type="file" id="model-import-file" accept=".glb,.gltf" style="display:none;">
-            <button id="model-import-btn" style="flex:1;padding:6px 0;background:rgba(255,255,255,0.04);color:#888;border:1px solid rgba(255,255,255,0.1);border-radius:5px;cursor:pointer;font-size:0.75em;">Import .glb Model</button>
-          </div>
+          <label style="font-size:0.75em;font-weight:700;color:#e94560;text-transform:uppercase;">Procedural Build</label>
+          <span style="font-size:0.75em;color:#666;display:block;text-align:center;">All parts are procedurally generated</span>
         </div>
         <button id="launch-btn">Launch into Course</button>
       </div>
@@ -173,16 +163,20 @@
       </div>
 
       <div id="touch-controls" class="touch-only">
-        <div class="touch-dpad">
-          <button id="btn-up" class="touch-btn">&#9650;</button>
-          <button id="btn-left" class="touch-btn">&#9664;</button>
-          <button id="btn-right" class="touch-btn">&#9654;</button>
-          <button id="btn-down" class="touch-btn">&#9660;</button>
+        <div class="touch-left-drive">
+          <button id="btn-forward" class="touch-btn drive-btn">&#9650;</button>
+          <button id="btn-back" class="touch-btn drive-btn">&#9660;</button>
         </div>
-        <div class="touch-group-right">
-          <button id="btn-hover" class="touch-btn action-btn">Hover</button>
-          <button id="btn-boost" class="touch-btn action-btn">Boost</button>
-          <button id="btn-shoot" class="touch-btn action-btn primary">Shoot</button>
+        <div class="touch-right-group">
+          <div class="touch-right-turn">
+            <button id="btn-turn-left" class="touch-btn turn-btn">&#9664;</button>
+            <button id="btn-turn-right" class="touch-btn turn-btn">&#9654;</button>
+          </div>
+          <div class="touch-actions">
+            <button id="btn-hover" class="touch-btn action-btn">Hover</button>
+            <button id="btn-boost" class="touch-btn action-btn">Boost</button>
+            <button id="btn-shoot" class="touch-btn action-btn primary">Shoot</button>
+          </div>
         </div>
       </div>
     </div>

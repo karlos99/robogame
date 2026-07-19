@@ -29,10 +29,10 @@ export function setupTouchControls(keys) {
     btn.addEventListener('contextmenu', e => e.preventDefault());
   };
 
-  touchSetup('btn-up', 'arrowup');
-  touchSetup('btn-down', 'arrowdown');
-  touchSetup('btn-left', 'arrowleft');
-  touchSetup('btn-right', 'arrowright');
+  touchSetup('btn-forward', 'arrowup');
+  touchSetup('btn-back', 'arrowdown');
+  touchSetup('btn-turn-left', 'arrowleft');
+  touchSetup('btn-turn-right', 'arrowright');
 
   const touchControls = document.getElementById('touch-controls');
   touchControls?.addEventListener('contextmenu', e => e.preventDefault());

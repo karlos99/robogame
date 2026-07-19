@@ -1,3 +1,4 @@
+import '@babylonjs/core/Lights/Shadows/shadowGeneratorSceneComponent';
 import { Engine } from '@babylonjs/core/Engines/engine';
 import { Scene } from '@babylonjs/core/scene';
 import { Vector3, Color3, Color4 } from '@babylonjs/core/Maths/math';
@@ -10,6 +11,7 @@ import { MeshBuilder } from '@babylonjs/core/Meshes/meshBuilder';
 import { StandardMaterial } from '@babylonjs/core/Materials/standardMaterial';
 import { TransformNode } from '@babylonjs/core/Meshes/transformNode';
 import { ShadowGenerator } from '@babylonjs/core/Lights/Shadows/shadowGenerator';
+import { GlowLayer } from '@babylonjs/core/Layers/glowLayer';
 import { buildDroid, clearTexCache } from '../droid/robot.js';
 import { buildCourse, updateBeacon, loadTextures } from '../world/course.js';
 import { circleRectCollision, circleCircleCollision, getFloorHeight, getStartPos, getGoalPos, MAP, COLS, ROWS, TILE, W, H } from '../world/maps.js';
@@ -55,6 +57,12 @@ const LASER_SPEED = 28;
 const LASER_RANGE = 42;
 
 let shadowGen = null;
+let glowLayer = null;
+
+const BODY_H = { heavy: 0.9, slim: 1.3, sleek: 1.1, hover_body: 0.5, mech: 1.0, sphere: 1.1, insect: 1.05, tank: 0.75, quad: 0.85, astromech_body: 0.8, protocol_body: 1.0, assassin: 1.5 };
+const BODY_R = { heavy: 0.65, slim: 0.40, sleek: 0.50, hover_body: 0.60, mech: 0.55, sphere: 0.55, insect: 0.50, tank: 0.70, quad: 0.60, astromech_body: 0.45, protocol_body: 0.42, assassin: 0.32 };
+const bh = (body) => BODY_H[body] || 1.0;
+const br = (body) => BODY_R[body] || 0.55;
 
 function hexToColor3(hex) {
   if (typeof hex === 'number') return new Color3(((hex >> 16) & 0xff) / 255, ((hex >> 8) & 0xff) / 255, (hex & 0xff) / 255);
@@ -105,6 +113,21 @@ function initScene() {
   backLight.diffuse = new Color3(1, 0.92, 0.82);
 
   window.addEventListener('resize', () => { if (engine) engine.resize(); });
+
+  if (!glowLayer) {
+    glowLayer = new GlowLayer('glow', scene, {
+      mainTextureFixedSize: isMobile() ? 256 : 512,
+      blurKernelSize: 16,
+    });
+    glowLayer.intensity = 0.35;
+    glowLayer.customEmissiveColorSelector = function(mesh, subMesh, material, result) {
+      if (!material) { result.set(0, 0, 0); return; }
+      const emissive = material.emissiveColor || result;
+      const brightness = emissive.r + emissive.g + emissive.b;
+      if (brightness < 0.2) { result.set(0, 0, 0); return; }
+      result.copyFrom(emissive);
+    };
+  }
 }
 
 function setupEnvironment() {
@@ -139,7 +162,7 @@ function placeDroid() {
 
   // Headlight
   if (headlight) headlight.dispose();
-  const headHeight = droidConfig.body === 'heavy' ? 0.95 : droidConfig.body === 'slim' ? 1.35 : 1.05;
+  const headHeight = bh(droidConfig.body);
   headlight = new SpotLight('headlight', new Vector3(pos.x, headHeight, pos.z), new Vector3(0, 0, 1), Math.PI / 4, 0.5, scene);
   headlight.diffuse = new Color3(1, 1, 1);
   headlight.intensity = 8;
@@ -342,8 +365,8 @@ function fireLaser() {
   muzzle.material = muzzleMat;
   muzzle.isPickable = false;
 
-  const bodyHeight = droidConfig.body === 'heavy' ? 0.9 : droidConfig.body === 'slim' ? 1.3 : 1.0;
-  const bodyRadius = droidConfig.body === 'heavy' ? 0.65 : droidConfig.body === 'slim' ? 0.40 : 0.55;
+  const bodyHeight = bh(droidConfig.body);
+  const bodyRadius = br(droidConfig.body);
 
   const startPos = new Vector3(pos.x, bodyHeight * 0.55, pos.z);
   startPos.addInPlace(fwd.scale(bodyRadius + 0.3));
@@ -470,7 +493,7 @@ function update() {
 
   if (recoil > 0) { recoil -= 0.08; if (recoil < 0) recoil = 0; }
   if (droid?.metadata?.turretBarrel) {
-    const bodyRadius = droidConfig.body === 'heavy' ? 0.65 : droidConfig.body === 'slim' ? 0.40 : 0.55;
+    const bodyRadius = br(droidConfig.body);
     droid.metadata.turretBarrel.position.z = bodyRadius * 0.35 - recoil * 0.2;
   }
 
@@ -493,6 +516,9 @@ function update() {
   } else if (baseType === 'hovers') {
     accelRate = 0.0007; maxSpeed = stats.speed * 0.042;
     dragForward = 0.04; dragRight = 0.07; steerPower = stats.turnSpeed * 1.8;
+  } else if (baseType === 'droideka') {
+    accelRate = 0.0012; maxSpeed = stats.speed * 0.044;
+    dragForward = 0.03; dragRight = 0.15; steerPower = stats.turnSpeed * 2.2;
   }
 
   if (boostActive) {
@@ -588,7 +614,7 @@ function update() {
   }
 
   if (headlight) {
-    const headHeight = droidConfig.body === 'heavy' ? 0.95 : droidConfig.body === 'slim' ? 1.35 : 1.05;
+  const headHeight = bh(droidConfig.body);
     const fwdVec = new Vector3(dirX, 0, dirZ);
     headlight.position.set(pos.x, headHeight + droidY, pos.z);
     headlight.position.addInPlace(fwdVec.scale(r + 0.1));
@@ -643,6 +669,16 @@ function update() {
       droid.getChildren().forEach(c => {
         if (c.name === 'ballBase') c.rotation.x += rollX * 0.8;
       });
+    }
+    // Droideka shields rotation
+    if (baseType === 'droideka' && droid.metadata?.dkShields) {
+      for (const s of droid.metadata.dkShields) {
+        s.rotation.y += vForward * 4.0;
+      }
+      if (droid.metadata.dkCore && droid.metadata.dkCore.material) {
+        const c = Math.sin(time * 6) * 0.3 + 0.7;
+        droid.metadata.dkCore.material.emissiveColor = new Color3(1, 0.4 * c, 0);
+      }
     }
     // Spider legs idle animation
     if (baseType === 'spider') {
