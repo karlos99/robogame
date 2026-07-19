@@ -1,4 +1,5 @@
 import '@babylonjs/core/Lights/Shadows/shadowGeneratorSceneComponent';
+import '@babylonjs/core/Rendering/prePassRendererSceneComponent';
 import { Engine } from '@babylonjs/core/Engines/engine';
 import { Scene } from '@babylonjs/core/scene';
 import { Vector3, Color3, Color4 } from '@babylonjs/core/Maths/math';
@@ -12,9 +13,17 @@ import { StandardMaterial } from '@babylonjs/core/Materials/standardMaterial';
 import { TransformNode } from '@babylonjs/core/Meshes/transformNode';
 import { ShadowGenerator } from '@babylonjs/core/Lights/Shadows/shadowGenerator';
 import { GlowLayer } from '@babylonjs/core/Layers/glowLayer';
-import { buildDroid, clearTexCache } from '../droid/robot.js';
+import { CubeTexture } from '@babylonjs/core/Materials/Textures/cubeTexture';
+import { IblShadowsRenderPipeline } from '@babylonjs/core/Rendering/IBLShadows/iblShadowsRenderPipeline';
+import { GIRSMManager } from '@babylonjs/core/Rendering/GlobalIllumination/giRSMManager';
+import { GIRSM } from '@babylonjs/core/Rendering/GlobalIllumination/giRSM';
+import { ReflectiveShadowMap } from '@babylonjs/core/Rendering/reflectiveShadowMap';
+import { SSAO2RenderingPipeline } from '@babylonjs/core/PostProcesses/RenderPipeline/Pipelines/ssao2RenderingPipeline';
+import { PBRMetallicRoughnessMaterial } from '@babylonjs/core/Materials/PBR/pbrMetallicRoughnessMaterial';
+import { DynamicTexture } from '@babylonjs/core/Materials/Textures/dynamicTexture';
+import { buildDroid, clearTexCache, getBaseHeight } from '../droid/robot.js';
 import { buildCourse, updateBeacon, loadTextures } from '../world/course.js';
-import { circleRectCollision, circleCircleCollision, getFloorHeight, getStartPos, getGoalPos, MAP, COLS, ROWS, TILE, W, H } from '../world/maps.js';
+import { circleRectCollision, circleCircleCollision, getFloorHeight, getStartPos, getGoalPos, MAP, COLS, ROWS, TILE, W, H, currentMapIndex } from '../world/maps.js';
 import { createStarfield, createDustParticles, spawnExplosion, spawnDriftDust, updateDynamicParticles, disposeEnvironment } from '../effects/particles.js';
 import { AudioSystem } from '../audio/audio.js';
 import { drawMinimap } from '../ui/minimap.js';
@@ -58,6 +67,19 @@ const LASER_RANGE = 42;
 
 let shadowGen = null;
 let glowLayer = null;
+let iblPipeline = null;
+let giManager = null;
+let ssaoPipeline = null;
+let envTexture = null;
+let hemiLight = null, sunLight = null, fillLight = null, backLight = null;
+
+const COVERAGE_CELL = 0.5;
+let coverageGrid = null;
+let coverageTotal = 0;
+let coverageCovered = 0;
+let coverageOverlay = null;
+let coverageTexture = null;
+let coverageCtx = null;
 
 const BODY_H = { heavy: 0.9, slim: 1.3, sleek: 1.1, hover_body: 0.5, mech: 1.0, sphere: 1.1, insect: 1.05, tank: 0.75, quad: 0.85, astromech_body: 0.8, protocol_body: 1.0, assassin: 1.5 };
 const BODY_R = { heavy: 0.65, slim: 0.40, sleek: 0.50, hover_body: 0.60, mech: 0.55, sphere: 0.55, insect: 0.50, tank: 0.70, quad: 0.60, astromech_body: 0.45, protocol_body: 0.42, assassin: 0.32 };
@@ -82,7 +104,7 @@ function initScene() {
   scene = new Scene(engine);
   scene.clearColor = new Color4(0.024, 0.024, 0.055, 1);
   scene.fogMode = Scene.FOGMODE_EXP2;
-  scene.fogDensity = 0.025;
+  scene.fogDensity = 0.02;
   scene.fogColor = new Color3(0.024, 0.024, 0.055);
 
   camera = new FreeCamera('cam', new Vector3(0, 8, -10), scene);
@@ -90,43 +112,60 @@ function initScene() {
   camera.maxZ = 80;
   camera.fov = 50 * Math.PI / 180;
 
-  const hemiLight = new HemisphericLight('hemi', new Vector3(0, 1, 0), scene);
-  hemiLight.intensity = 0.95;
+  // HDR environment texture for image-based lighting on all PBR materials
+  envTexture = CubeTexture.CreateFromPrefilteredData(
+    'https://assets.babylonjs.com/environments/environmentSpecular.env',
+    scene
+  );
+  scene.environmentTexture = envTexture;
+
+  hemiLight = new HemisphericLight('hemi', new Vector3(0, 1, 0), scene);
+  hemiLight.intensity = 0.5;
   hemiLight.diffuse = new Color3(0.82, 0.87, 1);
   hemiLight.groundColor = new Color3(0.24, 0.21, 0.17);
 
-  const sunLight = new DirectionalLight('sun', new Vector3(-0.4, -0.8, -0.3), scene);
+  sunLight = new DirectionalLight('sun', new Vector3(-0.4, -0.8, -0.3), scene);
   sunLight.position = new Vector3(15, 25, 10);
-  sunLight.intensity = 2.5;
+  sunLight.intensity = 1.5;
   sunLight.diffuse = new Color3(1, 0.99, 0.96);
   sunLight.shadowEnabled = !isMobile();
   shadowGen = new ShadowGenerator(isMobile() ? 512 : 2048, sunLight);
   shadowGen.usePercentageCloserFiltering = true;
+  shadowGen.useExponentialShadowMap = !isMobile();
   shadowGen.bias = -0.0005;
+  shadowGen.normalBias = 0.02;
 
-  const fillLight = new DirectionalLight('fill', new Vector3(0.3, -0.6, 0.3), scene);
-  fillLight.intensity = 0.85;
+  fillLight = new DirectionalLight('fill', new Vector3(0.3, -0.6, 0.3), scene);
+  fillLight.intensity = 0.4;
   fillLight.diffuse = new Color3(0.67, 0.8, 1);
 
-  const backLight = new DirectionalLight('back', new Vector3(0, -0.5, 0.5), scene);
-  backLight.intensity = 0.6;
+  backLight = new DirectionalLight('back', new Vector3(0, -0.5, 0.5), scene);
+  backLight.intensity = 0.3;
   backLight.diffuse = new Color3(1, 0.92, 0.82);
 
   window.addEventListener('resize', () => { if (engine) engine.resize(); });
 
   if (!glowLayer) {
+    const isLowEnd = isMobile();
     glowLayer = new GlowLayer('glow', scene, {
-      mainTextureFixedSize: isMobile() ? 256 : 512,
-      blurKernelSize: 16,
+      mainTextureFixedSize: isLowEnd ? 256 : 768,
+      blurKernelSize: isLowEnd ? 16 : 32,
+      camera: null,
     });
-    glowLayer.intensity = 0.35;
-    glowLayer.customEmissiveColorSelector = function(mesh, subMesh, material, result) {
-      if (!material) { result.set(0, 0, 0); return; }
-      const emissive = material.emissiveColor || result;
-      const brightness = emissive.r + emissive.g + emissive.b;
-      if (brightness < 0.2) { result.set(0, 0, 0); return; }
-      result.copyFrom(emissive);
-    };
+    glowLayer.intensity = isLowEnd ? 0.5 : 0.7;
+    glowLayer.neutralColor = new Color4(0, 0, 0, 1);
+  }
+
+  // SSAO2 - screen space ambient occlusion for depth and realism
+  if (!isMobile() && !ssaoPipeline) {
+    ssaoPipeline = new SSAO2RenderingPipeline('ssao', scene, {
+      radius: 0.5,
+      totalSamples: 16,
+      bilateralSamples: 4,
+      falloff: 0.001,
+      base: 0.15,
+    });
+    ssaoPipeline.setCamera(camera);
   }
 }
 
@@ -140,6 +179,58 @@ function setupCourse() {
     courseData.courseGroup.dispose();
   }
   courseData = buildCourse(scene, shadowGen);
+
+  // IBL Shadows pipeline - environment-cast shadows
+  if (!isMobile() && !iblPipeline) {
+    try {
+      iblPipeline = new IblShadowsRenderPipeline('ibl', scene, {
+        resolutionExp: 8,
+        sampleDirections: 8,
+        shadowOpacity: 0.5,
+        envRotation: 0,
+        shadowRemanence: 0.85,
+        triPlanarVoxelization: true,
+        ssShadowsEnabled: true,
+        ssShadowSampleCount: 8,
+      }, [camera]);
+      // Add all meshes in the course as shadow casters
+      if (courseData && courseData.courseGroup) {
+        courseData.courseGroup.getChildMeshes().forEach(mesh => {
+          if (mesh) iblPipeline.addShadowCastingMesh(mesh);
+        });
+      }
+      iblPipeline.addShadowReceivingMaterial();
+    } catch (e) {
+      console.warn('IBL Shadows not available:', e);
+    }
+  }
+
+  // RSM Global Illumination - light bouncing effect
+  if (!isMobile() && !giManager) {
+    try {
+      giManager = new GIRSMManager(
+        scene,
+        { width: engine.getRenderWidth(), height: engine.getRenderHeight() },
+        { width: 256, height: 256 },
+        1024
+      );
+      const rsm = new ReflectiveShadowMap(scene, sunLight, 256, 256);
+      rsm.samples = 1;
+      const giRSM = new GIRSM(rsm);
+      giRSM.numSamples = 400;
+      giRSM.radius = 0.1;
+      giRSM.intensity = 0.15;
+      giRSM.edgeArtifactCorrection = 0.1;
+      giRSM.rotateSample = true;
+      giManager.addGIRSM(giRSM);
+      giManager.addMaterial();
+      giManager.enable = true;
+      giManager.enableBlur = true;
+      giManager.blurKernel = 8;
+    } catch (e) {
+      console.warn('RSM GI not available:', e);
+    }
+  }
 }
 
 function placeDroid() {
@@ -149,7 +240,20 @@ function placeDroid() {
   }
   clearTexCache();
   droid = buildDroid(droidConfig, scene);
-  shadowGen.addShadowCaster(droid);
+  if (droid && shadowGen) {
+    const addCasters = (node) => {
+      if (typeof node.getBoundingInfo === 'function') {
+        shadowGen.addShadowCaster(node);
+      }
+      const children = node.getChildren();
+      if (children) {
+        for (const child of children) {
+          addCasters(child);
+        }
+      }
+    };
+    addCasters(droid);
+  }
 
   const start = courseData.startPos;
   pos.x = start.x;
@@ -160,13 +264,31 @@ function placeDroid() {
   droid.position.set(pos.x, 0.01, pos.z);
   droid.rotation.y = 0;
 
+  // Add droid to IBL shadow casting
+  if (iblPipeline && scene) {
+    const addCastersForIBL = (node) => {
+      if (typeof node.getBoundingInfo === 'function') {
+        iblPipeline.addShadowCastingMesh(node);
+      }
+      const children = node.getChildren();
+      if (children) {
+        for (const child of children) {
+          addCastersForIBL(child);
+        }
+      }
+    };
+    addCastersForIBL(droid);
+  }
+
   // Headlight
   if (headlight) headlight.dispose();
-  const headHeight = bh(droidConfig.body);
+  const baseHeight = getBaseHeight(droidConfig.base);
+  const headHeight = baseHeight + bh(droidConfig.body);
+  const isMaze = currentMapIndex === 3;
   headlight = new SpotLight('headlight', new Vector3(pos.x, headHeight, pos.z), new Vector3(0, 0, 1), Math.PI / 4, 0.5, scene);
-  headlight.diffuse = new Color3(1, 1, 1);
-  headlight.intensity = 8;
-  headlight.range = 20;
+  headlight.diffuse = new Color3(1, 0.97, 0.9);
+  headlight.intensity = isMaze ? 14 : 8;
+  headlight.range = isMaze ? 28 : 20;
   if (!isMobile()) {
     headlight.shadowEnabled = true;
   } else {
@@ -175,7 +297,7 @@ function placeDroid() {
 
   // Taillight
   if (taillight) taillight.dispose();
-  taillight = new PointLight('taillight', new Vector3(pos.x, 0.4, pos.z - 0.6), scene);
+  taillight = new PointLight('taillight', new Vector3(pos.x, baseHeight + 0.4, pos.z - 0.6), scene);
   taillight.diffuse = new Color3(1, 0, 0);
   taillight.intensity = 0.5;
   taillight.range = 4;
@@ -208,6 +330,133 @@ function placeDroid() {
   groundIndicator.rotation.y = angle;
 }
 
+function applyMazeLighting() {
+  const isMaze = currentMapIndex === 3;
+  if (isMaze) {
+    scene.clearColor = new Color4(0.015, 0.012, 0.028, 1);
+    scene.fogDensity = 0.035;
+    scene.fogColor = new Color3(0.015, 0.012, 0.028);
+    hemiLight.intensity = 0.3;
+    hemiLight.groundColor = new Color3(0.1, 0.08, 0.12);
+    sunLight.intensity = 0.9;
+    fillLight.intensity = 0.25;
+    fillLight.diffuse = new Color3(0.3, 0.35, 0.6);
+    backLight.intensity = 0.15;
+  } else {
+    scene.clearColor = new Color4(0.024, 0.024, 0.055, 1);
+    scene.fogDensity = 0.02;
+    scene.fogColor = new Color3(0.024, 0.024, 0.055);
+    hemiLight.intensity = 0.5;
+    hemiLight.groundColor = new Color3(0.24, 0.21, 0.17);
+    sunLight.intensity = 1.5;
+    fillLight.intensity = 0.4;
+    fillLight.diffuse = new Color3(0.67, 0.8, 1);
+    backLight.intensity = 0.3;
+  }
+}
+
+let mazeBeaconsAdded = false;
+
+function addMazeGlowBeacons() {
+  if (currentMapIndex !== 3 || !courseData || !courseData.courseGroup || mazeBeaconsAdded) return;
+  mazeBeaconsAdded = true;
+  const beaconMat = new PBRMetallicRoughnessMaterial('mazeBeaconMat', scene);
+  beaconMat.emissiveColor = new Color3(0.1, 0.4, 0.8);
+  beaconMat.roughness = 0.2;
+  beaconMat.metallic = 0.3;
+  beaconMat.alpha = 0.7;
+  beaconMat.transparencyMode = 2;
+  beaconMat.doubleSided = true;
+  const beaconGroup = new TransformNode('mazeBeacons', scene);
+  const halfW = W / 2, halfH = H / 2;
+  for (let r = 1; r < ROWS - 1; r++) {
+    for (let c = 1; c < COLS - 1; c++) {
+      const cell = MAP[r][c];
+      if (cell !== 0) continue;
+      let openNeighbors = 0;
+      for (const [dr, dc] of [[-1, 0], [1, 0], [0, -1], [0, 1]]) {
+        const nr = r + dr, nc = c + dc;
+        if (nr >= 0 && nr < ROWS && nc >= 0 && nc < COLS && (MAP[nr][nc] === 0 || MAP[nr][nc] === 'S' || MAP[nr][nc] === 9)) openNeighbors++;
+      }
+      if (openNeighbors >= 3) {
+        const x = c * TILE - halfW + TILE / 2;
+        const z = r * TILE - halfH + TILE / 2;
+        const beacon = MeshBuilder.CreateCylinder('beacon', { diameterTop: 0.04, diameterBottom: 0.08, height: 0.3, tessellation: 6 }, scene);
+        beacon.material = beaconMat;
+        beacon.position.set(x, 0.15, z);
+        beacon.parent = beaconGroup;
+        beacon.isPickable = false;
+      }
+    }
+  }
+  beaconGroup.parent = courseData.courseGroup;
+}
+
+let coverageHudEl = null;
+let coverageDirty = false;
+
+function initCoverage() {
+  if (coverageGrid) return;
+  const cols = Math.ceil(W / COVERAGE_CELL);
+  const rows = Math.ceil(H / COVERAGE_CELL);
+  coverageGrid = Array.from({ length: rows }, () => Array(cols).fill(false));
+  coverageTotal = rows * cols;
+  coverageCovered = 0;
+
+  coverageTexture = new DynamicTexture('covTex', { width: cols, height: rows }, scene, false, undefined, undefined, false);
+  coverageCtx = coverageTexture.getContext();
+  coverageCtx.fillStyle = '#000';
+  coverageCtx.fillRect(0, 0, cols, rows);
+  coverageTexture.update(false);
+
+  const overlayMat = new PBRMetallicRoughnessMaterial('covMat', scene);
+  overlayMat.emissiveTexture = coverageTexture;
+  overlayMat.emissiveColor = new Color3(0, 0.8, 1);
+  overlayMat.roughness = 1;
+  overlayMat.metallic = 0;
+  overlayMat.alpha = 0.4;
+  overlayMat.transparencyMode = 2;
+  overlayMat.doubleSided = true;
+
+  coverageOverlay = MeshBuilder.CreateGround('covOverlay', { width: W, height: H, subdivisions: 1 }, scene);
+  coverageOverlay.material = overlayMat;
+  coverageOverlay.position.y = 0.05;
+  coverageOverlay.isPickable = false;
+  coverageOverlay.parent = courseData.courseGroup;
+
+  if (!document.getElementById('coverage-pct')) {
+    coverageHudEl = document.createElement('div');
+    coverageHudEl.id = 'coverage-pct';
+    coverageHudEl.style.cssText = 'position:fixed;bottom:20px;right:20px;color:#44ddff;font-family:monospace;font-size:28px;font-weight:bold;text-shadow:0 0 10px rgba(68,221,255,0.5);z-index:100;pointer-events:none;background:rgba(0,0,0,0.5);padding:8px 16px;border-radius:8px;border:1px solid rgba(68,221,255,0.3);';
+    document.body.appendChild(coverageHudEl);
+  }
+}
+
+function updateCoverage(posX, posZ) {
+  if (!coverageGrid) return;
+  const cols = coverageGrid[0].length;
+  const c = Math.floor((posX + W / 2) / COVERAGE_CELL);
+  const r = Math.floor((posZ + H / 2) / COVERAGE_CELL);
+  if (r < 0 || r >= coverageGrid.length || c < 0 || c >= cols) return;
+  if (coverageGrid[r][c]) return;
+  coverageGrid[r][c] = true;
+  coverageCovered++;
+  coverageCtx.fillStyle = '#fff';
+  coverageCtx.fillRect(c, r, 1, 1);
+  coverageDirty = true;
+}
+
+function flushCoverageTexture() {
+  if (!coverageTexture || !coverageDirty) return;
+  coverageDirty = false;
+  coverageTexture.update(false);
+}
+
+function getCoveragePct() {
+  if (!coverageTotal) return 0;
+  return coverageCovered / coverageTotal;
+}
+
 export async function start(config) {
   initScene();
 
@@ -236,6 +485,17 @@ export async function start(config) {
 
   setupEnvironment();
   setupCourse();
+  applyMazeLighting();
+  addMazeGlowBeacons();
+  if (currentMapIndex === 4) {
+    initCoverage();
+    scene.clearColor = new Color4(0.01, 0.015, 0.02, 1);
+    scene.fogDensity = 0.01;
+    scene.fogColor = new Color3(0.01, 0.015, 0.02);
+    hemiLight.intensity = 0.4;
+    fillLight.intensity = 0.35;
+    fillLight.diffuse = new Color3(0.5, 0.6, 0.8);
+  }
   placeDroid();
 
   startTime = performance.now() / 1000;
@@ -257,6 +517,7 @@ export function stop() {
 
 export function cleanup() {
   stop();
+  mazeBeaconsAdded = false;
   for (const l of lasers) {
     if (l.mesh) l.mesh.dispose();
     if (l.light) l.light.dispose();
@@ -264,10 +525,32 @@ export function cleanup() {
   lasers.length = 0;
   if (droid) { droid.dispose(); droid = null; }
   if (courseData) { courseData.courseGroup.dispose(); courseData = null; }
+  if (iblPipeline) {
+    iblPipeline.dispose();
+    iblPipeline = null;
+  }
+  if (giManager) {
+    giManager.dispose();
+    giManager = null;
+  }
+  if (ssaoPipeline) {
+    ssaoPipeline.dispose();
+    ssaoPipeline = null;
+  }
+  if (scene) {
+    scene.environmentTexture = null;
+  }
   if (groundIndicator) { groundIndicator.dispose(); groundIndicator = null; }
   if (headlight) { headlight.dispose(); headlight = null; }
   if (taillight) { taillight.dispose(); taillight = null; }
   if (boostFlame) { boostFlame.dispose(); boostFlame = null; }
+  if (coverageHudEl) { coverageHudEl.remove(); coverageHudEl = null; }
+  coverageGrid = null;
+  coverageTotal = 0;
+  coverageCovered = 0;
+  coverageOverlay = null;
+  coverageTexture = null;
+  coverageCtx = null;
   disposeEnvironment();
   boostActive = false;
   boostTimer = 0;
@@ -365,10 +648,11 @@ function fireLaser() {
   muzzle.material = muzzleMat;
   muzzle.isPickable = false;
 
+  const baseHeight = getBaseHeight(droidConfig.base);
   const bodyHeight = bh(droidConfig.body);
   const bodyRadius = br(droidConfig.body);
 
-  const startPos = new Vector3(pos.x, bodyHeight * 0.55, pos.z);
+  const startPos = new Vector3(pos.x, baseHeight + bodyHeight * 0.55, pos.z);
   startPos.addInPlace(fwd.scale(bodyRadius + 0.3));
   beam.position.copyFrom(startPos);
   beam.lookAt(beam.position.add(fwd));
@@ -556,6 +840,13 @@ function update() {
     inputTurn = Math.sign(angleDiff);
   }
 
+  if (currentMapIndex === 3 && !directTurn && !hasCamInput) {
+    const snap = Math.round(angle / (Math.PI / 4)) * (Math.PI / 4);
+    const diff = snap - angle;
+    if (Math.abs(diff) > 0.001) angle += diff * 0.2;
+    else angle = snap;
+  }
+
   vForward *= (1 - dragForward);
   vRight *= (1 - dragRight);
   if (vForward > maxSpeed) vForward = maxSpeed;
@@ -607,14 +898,16 @@ function update() {
   AudioSystem.updateEngine(audioSpeedRatio);
 
   if (taillight) {
+    const baseHeight = getBaseHeight(droidConfig.base);
     const braking = (inputForward < 0) || (vForward > 0.01 && inputForward < 0);
     taillight.intensity = braking ? 2.5 : (vForward > 0.01 ? 0.3 : 0.8);
-    const tailPos = new Vector3(pos.x, 0.4 + droidY, pos.z).add(new Vector3(-dirX, 0, -dirZ).scale(r + 0.15));
+    const tailPos = new Vector3(pos.x, baseHeight + 0.4 + droidY, pos.z).add(new Vector3(-dirX, 0, -dirZ).scale(r + 0.15));
     taillight.position.copyFrom(tailPos);
   }
 
   if (headlight) {
-  const headHeight = bh(droidConfig.body);
+    const baseHeight = getBaseHeight(droidConfig.base);
+    const headHeight = baseHeight + bh(droidConfig.body);
     const fwdVec = new Vector3(dirX, 0, dirZ);
     headlight.position.set(pos.x, headHeight + droidY, pos.z);
     headlight.position.addInPlace(fwdVec.scale(r + 0.1));
@@ -721,6 +1014,21 @@ function update() {
   pos.x = Math.max(-W / 2 + margin, Math.min(W / 2 - margin, pos.x));
   pos.z = Math.max(-H / 2 + margin, Math.min(H / 2 - margin, pos.z));
 
+  if (currentMapIndex === 4) {
+    for (let ox = -r; ox <= r; ox += COVERAGE_CELL * 0.5) {
+      for (let oz = -r; oz <= r; oz += COVERAGE_CELL * 0.5) {
+        updateCoverage(pos.x + ox, pos.z + oz);
+      }
+    }
+    if (getCoveragePct() >= 0.9) {
+      won = true;
+      AudioSystem.playGoal();
+      AudioSystem.stopEngine();
+      winOverlay.classList.remove('hidden');
+      document.getElementById('win-back-btn').focus();
+    }
+  }
+
   const dt = 1 / 60;
   if (boostActive) {
     boostTimer -= dt;
@@ -728,14 +1036,16 @@ function update() {
   }
   if (boostCooldownTimer > 0) { boostCooldownTimer -= dt; if (boostCooldownTimer < 0) boostCooldownTimer = 0; }
 
-  const goal = courseData.goalPos;
-  const gdx = pos.x - goal.x, gdz = pos.z - goal.z, gdy = (droidY || 0) - (goal.y || 0);
-  if (gdx * gdx + gdz * gdz < 0.8 && Math.abs(gdy) < 0.5) {
-    won = true;
-    AudioSystem.playGoal();
-    AudioSystem.stopEngine();
-    winOverlay.classList.remove('hidden');
-    document.getElementById('win-back-btn').focus();
+  if (currentMapIndex !== 4) {
+    const goal = courseData.goalPos;
+    const gdx = pos.x - goal.x, gdz = pos.z - goal.z, gdy = (droidY || 0) - (goal.y || 0);
+    if (gdx * gdx + gdz * gdz < 0.8 && Math.abs(gdy) < 0.5) {
+      won = true;
+      AudioSystem.playGoal();
+      AudioSystem.stopEngine();
+      winOverlay.classList.remove('hidden');
+      document.getElementById('win-back-btn').focus();
+    }
   }
 }
 
@@ -848,6 +1158,13 @@ function render() {
     if (boostActive) { boostBtn.classList.add('boosting'); boostBtn.classList.remove('cooldown'); }
     else if (boostCooldownTimer > 0) { boostBtn.classList.remove('boosting'); boostBtn.classList.add('cooldown'); }
     else { boostBtn.classList.remove('boosting'); boostBtn.classList.remove('cooldown'); }
+  }
+
+  if (currentMapIndex === 4 && coverageTexture) {
+    const pct = Math.round(getCoveragePct() * 100);
+    const covEl = document.getElementById('coverage-pct');
+    if (covEl) covEl.textContent = pct + '%';
+    flushCoverageTexture();
   }
 
   scene.render();

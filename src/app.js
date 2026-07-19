@@ -76,13 +76,8 @@ export const App = {
     cards.forEach(card => {
       const lvl = parseInt(card.getAttribute('data-level'));
       const statusSpan = card.querySelector('.level-status');
-      if (gameProgress.isUnlocked(lvl)) {
-        card.classList.remove('locked');
-        if (statusSpan) statusSpan.textContent = lvl === 3 ? 'Random' : 'Unlocked';
-      } else {
-        card.classList.add('locked');
-        if (statusSpan) statusSpan.textContent = 'Locked';
-      }
+      card.classList.remove('locked');
+      if (statusSpan) statusSpan.textContent = lvl === 3 ? 'Random' : lvl === 4 ? 'Sweep' : 'Unlocked';
       if (lvl === gameProgress.activeLevel) {
         card.classList.add('active');
       } else {
@@ -120,6 +115,8 @@ export const App = {
     const cfg = getConfig();
     if (gameProgress.activeLevel === 3) {
       selectMap(3);
+    } else if (gameProgress.activeLevel === 4) {
+      selectMap(4);
     }
     await startGame(cfg);
     switching = false;

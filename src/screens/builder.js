@@ -7,6 +7,9 @@ import { HemisphericLight } from '@babylonjs/core/Lights/hemisphericLight';
 import { DirectionalLight } from '@babylonjs/core/Lights/directionalLight';
 import { MeshBuilder } from '@babylonjs/core/Meshes/meshBuilder';
 import { StandardMaterial } from '@babylonjs/core/Materials/standardMaterial';
+import { CubeTexture } from '@babylonjs/core/Materials/Textures/cubeTexture';
+import { GlowLayer } from '@babylonjs/core/Layers/glowLayer';
+import { PBRMetallicRoughnessMaterial } from '@babylonjs/core/Materials/PBR/pbrMetallicRoughnessMaterial';
 import { buildDroid } from '../droid/robot.js';
 import { config, closestColorIndex, PRIMARY_COLORS } from '../core/state.js';
 
@@ -38,28 +41,35 @@ function initScene() {
   camera.panningSensibility = 0;
   camera.inertia = 0.92;
 
+  const envTex = CubeTexture.CreateFromPrefilteredData(
+    'https://assets.babylonjs.com/environments/environmentSpecular.env',
+    scene
+  );
+  scene.environmentTexture = envTex;
+
   const hemiLight = new HemisphericLight('hemi', new Vector3(0, 1, 0), scene);
-  hemiLight.intensity = 0.95;
+  hemiLight.intensity = 0.5;
   hemiLight.diffuse = new Color3(0.82, 0.87, 1);
   hemiLight.groundColor = new Color3(0.24, 0.21, 0.17);
 
   const sunLight = new DirectionalLight('sun', new Vector3(-0.4, -0.8, -0.3), scene);
   sunLight.position = new Vector3(4, 8, 6);
-  sunLight.intensity = 2.5;
+  sunLight.intensity = 1.2;
   sunLight.diffuse = new Color3(1, 0.99, 0.96);
 
   const fillLight = new DirectionalLight('fill', new Vector3(0.3, -0.6, 0.3), scene);
-  fillLight.intensity = 0.85;
+  fillLight.intensity = 0.4;
   fillLight.diffuse = new Color3(0.67, 0.8, 1);
 
   const backLight = new DirectionalLight('back', new Vector3(0, -0.5, 0.5), scene);
-  backLight.intensity = 0.6;
+  backLight.intensity = 0.3;
   backLight.diffuse = new Color3(1, 0.92, 0.82);
 
   const floor = MeshBuilder.CreateGround('floor', { width: 8, height: 8 }, scene);
-  const floorMat = new StandardMaterial('floorMat', scene);
-  floorMat.diffuseColor = new Color3(0.07, 0.07, 0.12);
-  floorMat.specularColor = new Color3(0.02, 0.02, 0.02);
+  const floorMat = new PBRMetallicRoughnessMaterial('floorMat', scene);
+  floorMat.baseColor = new Color3(0.07, 0.07, 0.12);
+  floorMat.roughness = 0.7;
+  floorMat.metallic = 0.3;
   floor.material = floorMat;
   floor.position.y = -0.01;
   floor.receiveShadows = true;
@@ -71,6 +81,12 @@ function initScene() {
   gridMat.disableLighting = true;
   grid.material = gridMat;
   grid.position.y = 0.01;
+
+  const glow = new GlowLayer('glow', scene, {
+    mainTextureFixedSize: 512,
+    blurKernelSize: 32,
+  });
+  glow.intensity = 0.6;
 
   // Forward indicator arrow on floor
   const arrowMat = new StandardMaterial('arrowMat', scene);

@@ -349,6 +349,47 @@ export function updateDynamicParticles(scene) {
   }
 }
 
+let boostParticleTexture = null;
+
+function getBoostParticleTexture(scene) {
+  if (boostParticleTexture) return boostParticleTexture;
+  const canvas = document.createElement('canvas');
+  canvas.width = 64;
+  canvas.height = 64;
+  const ctx = canvas.getContext('2d');
+  const gradient = ctx.createRadialGradient(32, 32, 0, 32, 32, 32);
+  gradient.addColorStop(0, 'rgba(255,255,255,1)');
+  gradient.addColorStop(0.3, 'rgba(255,255,255,0.8)');
+  gradient.addColorStop(1, 'rgba(255,255,255,0)');
+  ctx.fillStyle = gradient;
+  ctx.fillRect(0, 0, 64, 64);
+  boostParticleTexture = new Texture('data:' + canvas.toDataURL('image/png'), scene);
+  return boostParticleTexture;
+}
+
+export function spawnBoostParticles(scene, pos, color = new Color3(0.3, 0.6, 1)) {
+  const particleSystem = new GPUParticleSystem('boostParticles', { capacity: 100 }, scene);
+  particleSystem.particleTexture = getBoostParticleTexture(scene);
+  particleSystem.emitter = pos;
+  particleSystem.minLifeTime = 0.1;
+  particleSystem.maxLifeTime = 0.4;
+  particleSystem.minSize = 0.02;
+  particleSystem.maxSize = 0.08;
+  particleSystem.minEmitPower = 0.2;
+  particleSystem.maxEmitPower = 0.6;
+  particleSystem.emitRate = 60;
+  particleSystem.blendMode = ParticleSystem.BLENDMODE_ADD;
+  particleSystem.color1 = color;
+  particleSystem.color2 = color.scale(0.4);
+  particleSystem.colorDead = new Color4(0, 0, 0, 0);
+  particleSystem.minAngularSpeed = -1;
+  particleSystem.maxAngularSpeed = 1;
+  particleSystem.direction1 = new Vector3(-0.3, -0.5, -0.3);
+  particleSystem.direction2 = new Vector3(0.3, -1, 0.3);
+  particleSystem.start();
+  return particleSystem;
+}
+
 export function disposeEnvironment() {
   for (const e of explosions) {
     if (e.light) e.light.dispose();

@@ -141,9 +141,37 @@ export function generateRandomMap() {
   MAPS[3] = grid;
 }
 
+export let currentMapIndex = 0;
+
+export function createVacuumMap() {
+  const R = ROWS, C = COLS;
+  const grid = Array.from({ length: R }, () => Array(C).fill(0));
+  for (let r = 0; r < R; r++) {
+    grid[r][0] = 1;
+    grid[r][C - 1] = 1;
+  }
+  for (let c = 0; c < C; c++) {
+    grid[0][c] = 1;
+    grid[R - 1][c] = 1;
+  }
+  grid[1][1] = 'S';
+  for (let r = 2; r < R - 2; r++) {
+    for (let c = 2; c < C - 2; c++) {
+      const rnd = Math.random();
+      if (rnd < 0.04) grid[r][c] = 2;
+      else if (rnd < 0.07) grid[r][c] = 3;
+    }
+  }
+  MAP = grid;
+  MAPS[4] = grid;
+}
+
 export function selectMap(index) {
+  currentMapIndex = index;
   if (index === 3) {
     generateRandomMap();
+  } else if (index === 4) {
+    createVacuumMap();
   } else {
     MAP = MAPS[index];
   }

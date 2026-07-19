@@ -1,7 +1,6 @@
 import { Vector3, Color3, Color4 } from '@babylonjs/core/Maths/math';
 import { TransformNode } from '@babylonjs/core/Meshes/transformNode';
 import { MeshBuilder } from '@babylonjs/core/Meshes/meshBuilder';
-import { StandardMaterial } from '@babylonjs/core/Materials/standardMaterial';
 import { PBRMetallicRoughnessMaterial } from '@babylonjs/core/Materials/PBR/pbrMetallicRoughnessMaterial';
 import { Texture } from '@babylonjs/core/Materials/Textures/texture';
 import { SpotLight } from '@babylonjs/core/Lights/spotLight';
@@ -20,14 +19,18 @@ function hexToColor3(hex) {
 }
 
 let texturesLoaded = false;
-let groundTexColor, groundTexNormal, groundTexRough;
-let wallTexColor, wallTexNormal, wallTexRough;
+let groundTexColor, groundTexNormal, groundTexRough, groundTexMetal;
+let wallTexColor, wallTexNormal, wallTexRough, wallTexAO;
 let beaconParts = [];
 
+function disposeTex(t) { if (t) try { t.dispose(); } catch (e) {} }
+
 export function loadTextures(scene) {
+  disposeTex(groundTexColor); disposeTex(groundTexNormal); disposeTex(groundTexRough); disposeTex(groundTexMetal);
+  disposeTex(wallTexColor); disposeTex(wallTexNormal); disposeTex(wallTexRough); disposeTex(wallTexAO);
   return new Promise(resolve => {
     let loaded = 0;
-    const total = 6;
+    const total = 8;
     const check = () => { loaded++; if (loaded >= total) { texturesLoaded = true; resolve(); } };
     const onErr = () => check();
 
@@ -56,6 +59,14 @@ export function loadTextures(scene) {
     } catch (e) { onErr(); }
 
     try {
+      groundTexMetal = new Texture('assets/textures/metal_plates/MetalPlates001_2K-JPG_Metalness.jpg', scene);
+      groundTexMetal.wrapU = groundTexMetal.wrapV = Texture.WRAP_ADDRESSMODE;
+      groundTexMetal.uScale = 2; groundTexMetal.vScale = 2;
+      groundTexMetal.onLoadObservable.addOnce(check);
+      groundTexMetal.onLoadErrorObservable.addOnce(onErr);
+    } catch (e) { onErr(); }
+
+    try {
       wallTexColor = new Texture('assets/textures/sci_fi_panel/Concrete028_2K-JPG_Color.jpg', scene);
       wallTexColor.wrapU = wallTexColor.wrapV = Texture.WRAP_ADDRESSMODE;
       wallTexColor.onLoadObservable.addOnce(check);
@@ -75,6 +86,13 @@ export function loadTextures(scene) {
       wallTexRough.onLoadObservable.addOnce(check);
       wallTexRough.onLoadErrorObservable.addOnce(onErr);
     } catch (e) { onErr(); }
+
+    try {
+      wallTexAO = new Texture('assets/textures/sci_fi_panel/Concrete028_2K-JPG_AmbientOcclusion.jpg', scene);
+      wallTexAO.wrapU = wallTexAO.wrapV = Texture.WRAP_ADDRESSMODE;
+      wallTexAO.onLoadObservable.addOnce(check);
+      wallTexAO.onLoadErrorObservable.addOnce(onErr);
+    } catch (e) { onErr(); }
   });
 }
 
@@ -83,9 +101,10 @@ function createStreetlight(scene, x, z, colorHex, courseGroup, shadowGen) {
   const lightGroup = new TransformNode('streetlight', scene);
   lightGroup.position.set(x, 0, z);
 
-  const poleMat = new StandardMaterial('poleMat', scene);
-  poleMat.diffuseColor = new Color3(0.09, 0.09, 0.09);
-  poleMat.specularColor = new Color3(0.5, 0.5, 0.5);
+  const poleMat = new PBRMetallicRoughnessMaterial('poleMat', scene);
+  poleMat.baseColor = new Color3(0.09, 0.09, 0.09);
+  poleMat.roughness = 0.6;
+  poleMat.metallic = 0.8;
   const pole = MeshBuilder.CreateCylinder('pole', { diameterTop: 0.06, diameterBottom: 0.1, height: 2.2, tessellation: 8 }, scene);
   pole.material = poleMat;
   pole.position.y = 1.1;
@@ -100,9 +119,10 @@ function createStreetlight(scene, x, z, colorHex, courseGroup, shadowGen) {
   bracket.parent = lightGroup;
   bracket.isPickable = false;
 
-  const bulbMat = new StandardMaterial('bulbMat', scene);
+  const bulbMat = new PBRMetallicRoughnessMaterial('bulbMat', scene);
   bulbMat.emissiveColor = col.scale(4);
-  bulbMat.disableLighting = true;
+  bulbMat.roughness = 0.1;
+  bulbMat.metallic = 0;
   const bulb = MeshBuilder.CreateSphere('bulb', { diameter: 0.16, segments: 10 }, scene);
   bulb.material = bulbMat;
   bulb.position.set(Math.cos(angleToCenter) * 0.45, 2.1, Math.sin(angleToCenter) * 0.45);
@@ -132,12 +152,19 @@ export function buildCourse(scene, shadowGen) {
     groundMat.baseTexture = groundTexColor;
     groundMat.normalTexture = groundTexNormal;
     groundMat.roughnessTexture = groundTexRough;
+    if (groundTexMetal) {
+      groundMat.metallicTexture = groundTexMetal;
+      groundMat.useMetallnessFromMetallicTextureBlue = true;
+      groundMat.useRoughnessFromMetallicTextureGreen = false;
+      groundMat.useRoughnessFromMetallicTextureAlpha = false;
+    }
     groundMat.roughness = 0.85;
     groundMat.metallic = 0.45;
   } else {
-    groundMat = new StandardMaterial('groundMat', scene);
-    groundMat.diffuseColor = new Color3(0.06, 0.06, 0.11);
-    groundMat.specularColor = new Color3(0.05, 0.05, 0.05);
+    groundMat = new PBRMetallicRoughnessMaterial('groundMat', scene);
+    groundMat.baseColor = new Color3(0.06, 0.06, 0.11);
+    groundMat.roughness = 0.85;
+    groundMat.metallic = 0.45;
   }
   const ground = MeshBuilder.CreateGround('ground', { width: W, height: H }, scene);
   ground.material = groundMat;
@@ -151,42 +178,52 @@ export function buildCourse(scene, shadowGen) {
     wallMat.baseTexture = wallTexColor;
     wallMat.normalTexture = wallTexNormal;
     wallMat.roughnessTexture = wallTexRough;
+    if (wallTexAO) {
+      wallMat.ambientTexture = wallTexAO;
+      wallMat.ambientTextureStrength = 0.6;
+    }
     wallMat.roughness = 0.8;
     wallMat.metallic = 0.2;
   } else {
-    wallMat = new StandardMaterial('wallMat', scene);
-    wallMat.diffuseColor = new Color3(0.16, 0.16, 0.24);
-    wallMat.specularColor = new Color3(0.1, 0.1, 0.1);
+    wallMat = new PBRMetallicRoughnessMaterial('wallMat', scene);
+    wallMat.baseColor = new Color3(0.16, 0.16, 0.24);
+    wallMat.roughness = 0.8;
+    wallMat.metallic = 0.2;
   }
-  const wallCapMat = new StandardMaterial('wallCapMat', scene);
-  wallCapMat.diffuseColor = new Color3(0.24, 0.24, 0.36);
-  wallCapMat.specularColor = new Color3(0.1, 0.1, 0.1);
-  const wallStripMat = new StandardMaterial('wallStripMat', scene);
+  const wallCapMat = new PBRMetallicRoughnessMaterial('wallCapMat', scene);
+  wallCapMat.baseColor = new Color3(0.24, 0.24, 0.36);
+  wallCapMat.roughness = 0.7;
+  wallCapMat.metallic = 0.2;
+  const wallStripMat = new PBRMetallicRoughnessMaterial('wallStripMat', scene);
   wallStripMat.emissiveColor = new Color3(0.13, 0.27, 0.67);
-  wallStripMat.disableLighting = true;
 
-  const crateMat = new StandardMaterial('crateMat', scene);
-  crateMat.diffuseColor = new Color3(0.61, 0.48, 0.32);
-  crateMat.specularColor = new Color3(0.05, 0.05, 0.05);
-  const crateStripeMat = new StandardMaterial('crateStripeMat', scene);
-  crateStripeMat.diffuseColor = new Color3(0.49, 0.36, 0.21);
-  crateStripeMat.specularColor = new Color3(0.05, 0.05, 0.05);
-  const crateCornerMat = new StandardMaterial('crateCornerMat', scene);
-  crateCornerMat.diffuseColor = new Color3(0.2, 0.2, 0.2);
-  crateCornerMat.specularColor = new Color3(0.5, 0.5, 0.5);
-  const crateGlowMat = new StandardMaterial('crateGlowMat', scene);
+  const crateMat = new PBRMetallicRoughnessMaterial('crateMat', scene);
+  crateMat.baseColor = new Color3(0.61, 0.48, 0.32);
+  crateMat.roughness = 0.8;
+  crateMat.metallic = 0.1;
+  const crateStripeMat = new PBRMetallicRoughnessMaterial('crateStripeMat', scene);
+  crateStripeMat.baseColor = new Color3(0.49, 0.36, 0.21);
+  crateStripeMat.roughness = 0.8;
+  crateStripeMat.metallic = 0.1;
+  const crateCornerMat = new PBRMetallicRoughnessMaterial('crateCornerMat', scene);
+  crateCornerMat.baseColor = new Color3(0.2, 0.2, 0.2);
+  crateCornerMat.roughness = 0.3;
+  crateCornerMat.metallic = 0.8;
+  const crateGlowMat = new PBRMetallicRoughnessMaterial('crateGlowMat', scene);
   crateGlowMat.emissiveColor = new Color3(1, 0.67, 0);
-  crateGlowMat.disableLighting = true;
 
-  const barrelMat = new StandardMaterial('barrelMat', scene);
-  barrelMat.diffuseColor = new Color3(0.17, 0.24, 0.17);
-  barrelMat.specularColor = new Color3(0.2, 0.2, 0.2);
-  const barrelBandMat = new StandardMaterial('barrelBandMat', scene);
-  barrelBandMat.diffuseColor = new Color3(0.12, 0.17, 0.11);
-  barrelBandMat.specularColor = new Color3(0.05, 0.05, 0.05);
-  const barrelRimMat = new StandardMaterial('barrelRimMat', scene);
-  barrelRimMat.diffuseColor = new Color3(0.12, 0.12, 0.12);
-  barrelRimMat.specularColor = new Color3(0.5, 0.5, 0.5);
+  const barrelMat = new PBRMetallicRoughnessMaterial('barrelMat', scene);
+  barrelMat.baseColor = new Color3(0.17, 0.24, 0.17);
+  barrelMat.roughness = 0.6;
+  barrelMat.metallic = 0.4;
+  const barrelBandMat = new PBRMetallicRoughnessMaterial('barrelBandMat', scene);
+  barrelBandMat.baseColor = new Color3(0.12, 0.17, 0.11);
+  barrelBandMat.roughness = 0.7;
+  barrelBandMat.metallic = 0.3;
+  const barrelRimMat = new PBRMetallicRoughnessMaterial('barrelRimMat', scene);
+  barrelRimMat.baseColor = new Color3(0.12, 0.12, 0.12);
+  barrelRimMat.roughness = 0.3;
+  barrelRimMat.metallic = 0.8;
 
   const obstacles = [];
   const startPos = getStartPos();
@@ -196,23 +233,24 @@ export function buildCourse(scene, shadowGen) {
   const rBarrel = TILE * 0.28;
   const hBarrel = TILE * 0.65;
 
-  const slabMat = new StandardMaterial('slabMat', scene);
-  slabMat.diffuseColor = new Color3(0.12, 0.12, 0.18);
-  slabMat.specularColor = new Color3(0.3, 0.3, 0.3);
-  const pillarMat = new StandardMaterial('pillarMat', scene);
-  pillarMat.diffuseColor = new Color3(0.13, 0.13, 0.2);
-  pillarMat.specularColor = new Color3(0.5, 0.5, 0.5);
+  const slabMat = new PBRMetallicRoughnessMaterial('slabMat', scene);
+  slabMat.baseColor = new Color3(0.12, 0.12, 0.18);
+  slabMat.roughness = 0.5;
+  slabMat.metallic = 0.4;
+  const pillarMat = new PBRMetallicRoughnessMaterial('pillarMat', scene);
+  pillarMat.baseColor = new Color3(0.13, 0.13, 0.2);
+  pillarMat.roughness = 0.3;
+  pillarMat.metallic = 0.7;
 
-  const rampMat = new StandardMaterial('rampMat', scene);
-  rampMat.diffuseColor = new Color3(0.2, 0.2, 0.27);
-  rampMat.specularColor = new Color3(0.2, 0.2, 0.2);
-  const railMat = new StandardMaterial('railMat', scene);
+  const rampMat = new PBRMetallicRoughnessMaterial('rampMat', scene);
+  rampMat.baseColor = new Color3(0.2, 0.2, 0.27);
+  rampMat.roughness = 0.6;
+  rampMat.metallic = 0.3;
+  const railMat = new PBRMetallicRoughnessMaterial('railMat', scene);
   railMat.emissiveColor = new Color3(1, 0.4, 0);
-  railMat.disableLighting = true;
 
-  const stripMat = new StandardMaterial('stripMat', scene);
+  const stripMat = new PBRMetallicRoughnessMaterial('stripMat', scene);
   stripMat.emissiveColor = new Color3(0.27, 0.53, 0.8);
-  stripMat.disableLighting = true;
 
   function createCrateMesh() {
     const g = new TransformNode('crate', scene);
@@ -254,9 +292,8 @@ export function buildCourse(scene, shadowGen) {
   function createBarrelMesh() {
     const g = new TransformNode('barrel', scene);
 
-    const coreMat = new StandardMaterial('coreMat', scene);
-    coreMat.emissiveColor = new Color3(0.2, 0.8, 0.27);
-    coreMat.disableLighting = true;
+  const coreMat = new PBRMetallicRoughnessMaterial('coreMat', scene);
+  coreMat.emissiveColor = new Color3(0.2, 0.8, 0.27);
     const plasma = MeshBuilder.CreateCylinder('plasma', { diameter: rBarrel * 1.6, height: hBarrel * 0.95, tessellation: 12 }, scene);
     plasma.material = coreMat;
     plasma.position.y = hBarrel / 2;
@@ -441,9 +478,8 @@ export function buildCourse(scene, shadowGen) {
   }
 
   // Edge strips
-  const edgeMat = new StandardMaterial('edgeMat', scene);
+  const edgeMat = new PBRMetallicRoughnessMaterial('edgeMat', scene);
   edgeMat.emissiveColor = new Color3(0.27, 0.53, 0.8);
-  edgeMat.disableLighting = true;
   const edgePositions = [
     { x: 0, z: -H / 2 + 0.02, ry: 0 },
     { x: 0, z: H / 2 - 0.02, ry: 0 },
@@ -473,9 +509,8 @@ export function buildCourse(scene, shadowGen) {
 
   // Beacon
   const beaconY = goalPos.y || 0;
-  const beaconBaseMat = new StandardMaterial('beaconBaseMat', scene);
+  const beaconBaseMat = new PBRMetallicRoughnessMaterial('beaconBaseMat', scene);
   beaconBaseMat.emissiveColor = hexToColor3(0xe94560).scale(0.6);
-  beaconBaseMat.disableLighting = true;
   const beacon = MeshBuilder.CreateCylinder('beacon', { diameter: 1, height: 0.14, tessellation: 16 }, scene);
   beacon.material = beaconBaseMat;
   beacon.position.set(goalPos.x, beaconY + 0.07, goalPos.z);
@@ -483,10 +518,9 @@ export function buildCourse(scene, shadowGen) {
   beacon.isPickable = false;
   beaconParts.push(beacon);
 
-  const beaconRingMat = new StandardMaterial('beaconRingMat', scene);
+  const beaconRingMat = new PBRMetallicRoughnessMaterial('beaconRingMat', scene);
   beaconRingMat.emissiveColor = hexToColor3(0xe94560).scale(0.8);
   beaconRingMat.alpha = 0.6;
-  beaconRingMat.disableLighting = true;
   const beaconRing = MeshBuilder.CreateTorus('beaconRing', { diameter: 1.1, thickness: 0.025, tessellation: 24 }, scene);
   beaconRing.material = beaconRingMat;
   beaconRing.position.set(goalPos.x, beaconY + 0.1, goalPos.z);
@@ -495,18 +529,18 @@ export function buildCourse(scene, shadowGen) {
   beaconRing.isPickable = false;
   beaconParts.push(beaconRing);
 
-  const poleMat = new StandardMaterial('beaconPoleMat', scene);
-  poleMat.diffuseColor = new Color3(0.6, 0.6, 0.6);
-  poleMat.specularColor = new Color3(0.8, 0.8, 0.8);
+  const poleMat = new PBRMetallicRoughnessMaterial('beaconPoleMat', scene);
+  poleMat.baseColor = new Color3(0.6, 0.6, 0.6);
+  poleMat.roughness = 0.2;
+  poleMat.metallic = 0.9;
   const beaconPole = MeshBuilder.CreateCylinder('beaconPole', { diameter: 0.04, height: 1.4, tessellation: 8 }, scene);
   beaconPole.material = poleMat;
   beaconPole.position.set(goalPos.x, beaconY + 0.7, goalPos.z);
   beaconPole.parent = course;
   beaconPole.isPickable = false;
 
-  const beaconTopMat = new StandardMaterial('beaconTopMat', scene);
+  const beaconTopMat = new PBRMetallicRoughnessMaterial('beaconTopMat', scene);
   beaconTopMat.emissiveColor = hexToColor3(0xff3366).scale(1.2);
-  beaconTopMat.disableLighting = true;
   const beaconTop = MeshBuilder.CreateSphere('beaconTop', { diameter: 0.24, segments: 12 }, scene);
   beaconTop.material = beaconTopMat;
   beaconTop.position.set(goalPos.x, beaconY + 1.4, goalPos.z);
@@ -514,11 +548,9 @@ export function buildCourse(scene, shadowGen) {
   beaconTop.isPickable = false;
   beaconParts.push(beaconTop);
 
-  const beamMat = new StandardMaterial('beamMat', scene);
+  const beamMat = new PBRMetallicRoughnessMaterial('beamMat', scene);
   beamMat.emissiveColor = hexToColor3(0xe94560).scale(0.6);
   beamMat.alpha = 0.22;
-  beamMat.backFaceCulling = false;
-  beamMat.disableLighting = true;
   const beam = MeshBuilder.CreateCylinder('beam', { diameterTop: 0.08, diameterBottom: 0.44, height: 3.5, tessellation: 12, sideOrientation: 2 }, scene);
   beam.material = beamMat;
   beam.position.set(goalPos.x, beaconY + 3.15, goalPos.z);
@@ -526,10 +558,8 @@ export function buildCourse(scene, shadowGen) {
   beam.isPickable = false;
   beaconParts.push(beam);
 
-  const ring1Mat = new StandardMaterial('ring1Mat', scene);
+  const ring1Mat = new PBRMetallicRoughnessMaterial('ring1Mat', scene);
   ring1Mat.emissiveColor = hexToColor3(0xff3388).scale(1);
-  ring1Mat.wireframe = true;
-  ring1Mat.disableLighting = true;
   const ring1 = MeshBuilder.CreateTorus('portalRing1', { diameter: 0.7, thickness: 0.015, tessellation: 16 }, scene);
   ring1.material = ring1Mat;
   ring1.position.set(goalPos.x, beaconY + 0.7, goalPos.z);

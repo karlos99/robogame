@@ -40,7 +40,7 @@ export function getConfig() {
 
 export const gameProgress = {
   activeLevel: 0,
-  unlockedLevels: [0, 1, 2, 3],
+  unlockedLevels: [0, 1, 2, 3, 4],
 
   load() {
     try {
@@ -50,8 +50,10 @@ export const gameProgress = {
         if (Array.isArray(parsed)) this.unlockedLevels = parsed;
       }
     } catch (e) { /* ignore */ }
-    if (!this.unlockedLevels.length) this.unlockedLevels = [0, 1, 2, 3];
-    if (!this.unlockedLevels.includes(3)) this.unlockedLevels.push(3);
+    if (!this.unlockedLevels.length) this.unlockedLevels = [0, 1, 2, 3, 4];
+    for (const lvl of [3, 4]) {
+      if (!this.unlockedLevels.includes(lvl)) this.unlockedLevels.push(lvl);
+    }
   },
 
   save() {
@@ -66,7 +68,7 @@ export const gameProgress = {
 
   unlockNext() {
     const next = this.activeLevel + 1;
-    if (next < 3 && !this.unlockedLevels.includes(next)) {
+    if (!this.unlockedLevels.includes(next)) {
       this.unlockedLevels.push(next);
       this.save();
     }
